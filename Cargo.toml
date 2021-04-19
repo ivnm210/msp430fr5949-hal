@@ -1,0 +1,52 @@
+[package]
+name = "msp430fr5949-hal"
+version = "0.1.0"
+authors = ["Ivan Milicin <ivan.milicin@gmail.com>"]
+edition = "2018"
+description = "Implementation of embedded-hal for microcontrollers MSP430FR5949"
+license = "MIT OR Apache-2.0"
+repository = ""
+keywords = ["no-std", "msp430", "ti", "launchpad", "embedded-hal"]
+documentation = "https://docs.rs/msp430fr5949-hal"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+msp430 = "0.2.2"
+nb = "0.1.2"
+
+[dependencies.void]
+version = "1.0.2"
+default-features = false
+
+[dependencies.embedded-hal]
+version = "0.2.3"
+features = ["unproven"]
+
+[dependencies.msp430fr5949]
+features = ["rt"]
+version="0.1.0"
+path="../msp430fr5949"
+
+[dev-dependencies]
+panic-msp430 = "0.2.0"
+panic-never = "0.1.0"
+msp430-rt = "0.2.0"
+#embedded-nrf24l01 = "0.2.0"
+
+[dependencies.embedded-nrf24l01]
+version = "0.2.0"
+path="../embedded-nrf24l01"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = "z"
+
+[profile.dev]
+opt-level = "s"
+codegen-units = 1
+debug = true
+
+[profile.dev.package."*"]
+opt-level = "z"

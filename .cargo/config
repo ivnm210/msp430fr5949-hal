@@ -1,0 +1,27 @@
+[target.msp430-none-elf]
+# For debugging
+# runner = "msp430-elf-gdb -q -x mspdebug.gdb"
+# For running
+runner = "./run.sh"
+
+rustflags = [
+    "-C", "link-arg=-nostartfiles",
+#    "-C", "link-arg=-c",
+    "-C", "link-arg=-lgcc",
+    # "-C", "link-arg=-mlarge",
+    # "-C", "link-arg=-msilicon-errata=CPU21",
+    # "-C", "link-arg=-msilicon-errata=CPU22",
+    # "-C", "link-arg=-msilicon-errata=CPU40",
+    # "-C", "link-arg=-mhwmult=f5series",
+    # "-C", "link-arg=-mcpu=msp430x",
+    "-C", "link-arg=-lmul_none",
+    "-C", "link-arg=-mcpu=msp430",
+    "-C", "link-arg=-mmcu=msp430fr5949",
+    "-C", "link-arg=-Tlink.x",
+    "-C", "linker=msp430-elf-gcc",
+    "-C", "linker-flavor=gcc",
+]
+
+[build]
+target = "msp430-none-elf"
+#rustflags = "-g"
