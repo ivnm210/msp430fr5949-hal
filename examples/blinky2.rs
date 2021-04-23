@@ -2,6 +2,7 @@
 #![no_std]
 
 use embedded_hal::digital::v2::*;
+use embedded_hal::prelude::*;
 use msp430_rt::entry;
 use msp430::{asm, interrupt};
 // use msp430fr5949_hal::{gpio::Batch, pmm::Pmm, watchdog::Wdt};
@@ -29,24 +30,6 @@ fn delay(n: u32) {
     }
 }
 
-fn uart1_init()
-{
-    // let periph = msp430fr5949::Peripherals::take().unwrap();
-    // let p2 = periph.PORT_1_2;
-    // p2.p2sel0.modify(|_r,w| w.p2sel0.p2sel0_5().clear_bit());
-
-}
-
-fn uart_putc(ch : u8)
-{
-
-}
-
-fn uart_puts(buf : &str)
-{
-
-}
-
 // Red onboard LED should blink at a steady period.
 // Green onboard LED should go on when P2.3 button is pressed
 #[entry]
@@ -56,7 +39,7 @@ fn main() -> ! {
     let _wdt = Wdt::constrain(periph.WATCHDOG_TIMER);
 
     let (smclk, _aclk) = ClockConfig::new(periph.CS)
-            .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_1)
+            .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
             .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
             .aclk_vloclk()
             .freeze(&mut fram);
@@ -72,7 +55,7 @@ fn main() -> ! {
     let p2 = Batch::new(P2 {port : periph.PORT_1_2 }).split(&pmm);
 
     let (mut tx, mut rx) = SerialConfig::new(
-        periph.USCI_A0_UART_MODE,
+        periph.USCI_A1_UART_MODE,
         BitOrder::LsbFirst,
         BitCount::EightBits,
         StopBits::OneStopBit,
@@ -83,7 +66,7 @@ fn main() -> ! {
     )
     .use_smclk(&smclk)
     //.split(p2.pin5.to_alternate2(), p2.pin6.to_alternate2());
-    .split(p2.pin0.to_alternate2(), p2.pin1.to_alternate2());
+    .split(p2.pin5.to_alternate2(), p2.pin6.to_alternate2());
 
     // let mut p3_5 = p3.pin5.to_output();
     let mut p3_1 = p3.pin1;
