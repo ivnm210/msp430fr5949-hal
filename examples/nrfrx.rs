@@ -22,9 +22,10 @@ use msp430fr5949::interrupt;
 extern crate embedded_nrf24l01;
 use embedded_nrf24l01::*;
 use embedded_nrf24l01 as nrf24;
+use core::panic::PanicInfo;
 
 // #[cfg(debug_assertions)]
-use panic_msp430 as _;
+//use panic_msp430 as _;
 
 static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
 static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
@@ -113,8 +114,8 @@ fn write<U: SerialUsci>(tx: &mut Tx<U>, ch: char) {
     block!(tx.write(ch as u8)).unwrap();
 }
 
-fn progress<U: SerialUsci>(tx: &mut Tx<U>, cnt: u8) {
-    let ch : char = match cnt {
+fn progress<U: SerialUsci>(tx: &mut Tx<U>, cnt: u16) {
+    let ch : char = match ((cnt & 0xFF) as u8) {
         1 => '\\',
         3 => '/',
         _ => '-',
@@ -124,15 +125,37 @@ fn progress<U: SerialUsci>(tx: &mut Tx<U>, cnt: u8) {
     // block!(tx.write('\n' as u8)).unwrap();
 }
 
+fn progress2<U: SerialUsci>(tx: &mut Tx<U>, ch: char, cnt: u16) {
+    write(tx, ch);
+    write(tx, '0');
+    write(tx, 'x');
+    print_hex(tx, cnt >> 12);
+    print_hex(tx, (cnt >> 8) & 0xF);
+    print_hex(tx, (cnt >> 4) & 0xF);
+    print_hex(tx, cnt & 0xF);
+    block!(tx.write(' ' as u8)).unwrap();
+    block!(tx.write('\r' as u8)).unwrap();
+    block!(tx.write('\n' as u8)).unwrap();
+    // block!(tx.write('\n' as u8)).unwrap();
+}
+
 fn print_rec_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize)
 {
-    tx.bwrite_all(b"read = ").ok();
-    tx.bwrite_all(&buf[0..len-1]).ok();
+    tx.bwrite_all(b"read = ").unwrap();
+    tx.bwrite_all(&buf[0..len-1]).unwrap();
     let cnt : u16 = ((buf[30] as u16) << 8) + (buf[31] as u16);
-    tx.bwrite_all(b" ").ok();
+    tx.bwrite_all(b" ").unwrap();
     print_u16(tx, cnt);
 }
 
+fn print_snd_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize)
+{
+    tx.bwrite_all(b"send = ").unwrap();
+    tx.bwrite_all(&buf[0..len-1]).unwrap();
+    let cnt : u16 = ((buf[30] as u16) << 8) + (buf[31] as u16);
+    tx.bwrite_all(b" ").unwrap();
+    print_u16(tx, cnt);
+}
 // #[cfg(not(debug_assertions))]
 // use panic_never as _;
 
@@ -171,6 +194,7 @@ fn main() -> ! {
             Parity::NoParity,
             Loopback::NoLoop,
             115200,
+            //57600,
         )
         .use_smclk(&smclk)
         .split(p2.pin5.to_alternate2(), p2.pin6.to_alternate2());
@@ -209,10 +233,10 @@ fn main() -> ! {
         let mybool = mbool::new(true);
         free(|cs| *MYBOOL.borrow(&cs).borrow_mut() = Some(mybool));
 
-        let ce = p2.pin4.to_output();
-        let csn = p3.pin0.to_output();
-        // ce.set_low().unwrap();
-        // csn.set_high().unwrap();
+        let mut ce = p2.pin4.to_output();
+        let mut csn = p3.pin0.to_output();
+        ce.set_low().unwrap();
+        csn.set_high().unwrap();
         tx.bwrite_all(b"we have ce csn\r\n").ok();
         let mut nrf24 = NRF24L01::new(ce, csn, spi).unwrap();
         tx.bwrite_all(b"We have nrf\r\n").ok();
@@ -227,7 +251,8 @@ fn main() -> ! {
         nrf24.set_crc(nrf24::CrcMode::Disabled).unwrap();
         nrf24.set_tx_addr(&b"fnord"[..]).unwrap();
         nrf24.set_rx_addr(0, &b"fnord"[..]).unwrap();
-        nrf24.set_interrupt_mask(true, true, true).unwrap();
+        nrf24.set_interrupt_mask(false, false, false).unwrap();
+        nrf24.clear_interrupts().unwrap();
 
         let mut count = 0u8;
 
@@ -254,8 +279,6 @@ fn main() -> ! {
 // use tx.can_send() to prevent sending on full queue, and tx.wait_empty() to flush
 //
 //
-
-
         let mut radiost = RadioState::RadioStandby;
         let mut txpkt = [0x4fu8; 2]; //send back OK
         txpkt[1] = 0x4b;
@@ -271,40 +294,46 @@ fn main() -> ! {
                     let mut nrf24rx = nrf24.rx().unwrap();
                     let mut cnt = 0u16;
                     loop {
-                        if let Some(pipe) = nrf24rx.can_read().unwrap() {
+                        if let Ok(Some(pipe)) = nrf24rx.can_read() {
                             if let Ok(pl) = nrf24rx.read() {
                                 if pl.len() > 0 {
-                                    //tx.bwrite_all(b"read = ").ok();
-                                    //tx.bwrite_all(pl.as_ref()).ok();
-                                    //tx.bwrite_all(b"\r\n").ok();
                                     print_rec_pkt(&mut tx, pl.as_ref(), pl.len()-2);
                                     nextradiost = RadioState::RadioTx;
-                                    //nrf24rx.flush_rx().unwrap();
-                                    nrf24 = nrf24rx.standby();
-                                    delay(100);
                                     break;
                                 }
                             }
                         }
                         cnt = cnt + 1;
-                        delay(100);
-                        progress(&mut tx, (cnt & 0xFF) as u8);
+                        if (cnt % 10) == 0 {
+                            block!(tx.write('.' as u8)).unwrap();
+                            if cnt % 80 == 0 {
+                                block!(tx.write('\r' as u8)).unwrap();
+                                block!(tx.write('\n' as u8)).unwrap();
+                            }
+                            //if cnt == 1000 {
+                                //block!(tx.write('+' as u8)).unwrap();
+                                //block!(tx.write('\r' as u8)).unwrap();
+                                //block!(tx.write('\n' as u8)).unwrap();
+                                //break;
+                            //}
+                        }
+                        //progress(&mut tx, cnt);
+                        //progress2(&mut tx, 'R', cnt);
                     }
+                    nrf24 = nrf24rx.standby();
+                    delay(100);
                 },
                 RadioState::RadioTx => {
                     let mut nrf24tx = nrf24.tx().unwrap();
                     loop {
                         if let Ok(test) = nrf24tx.can_send() {
                             if test {
-                                tx.bwrite_all(b"send = ").unwrap();
-                                tx.bwrite_all(&txpkt).unwrap();
-                                tx.bwrite_all(b"\r\n").unwrap();
+                    //            print_snd_pkt(&mut tx, &txpkt, txpkt.len()-2);
                                 nrf24tx.send(&txpkt).unwrap();
                                 nrf24tx.wait_empty().unwrap();
                                 nrf24tx.clear_interrupts().unwrap();
                                 nextradiost = RadioState::RadioRx;
                                 nrf24 = nrf24tx.standby().unwrap();
-                                delay(100);
                                 break;
                             }
                         }
@@ -315,22 +344,22 @@ fn main() -> ! {
                 },
             }
 
-            if count & 1 == 1 {
-                p3_4.set_low().unwrap();
-            } else {
-                p3_4.set_high().unwrap();
-            }
-            if count & 2 == 2 {
-                p3_6.set_low().unwrap();
-            } else {
-                p3_6.set_high().unwrap();
-            }
-            if count & 4 == 4 {
-                p3_1.set_low().unwrap();
-            } else {
-                p3_1.set_high().unwrap();
-            }
-            count = count + 1;
+            //if count & 1 == 1 {
+                //p3_4.set_low().unwrap();
+            //} else {
+                //p3_4.set_high().unwrap();
+            //}
+            //if count & 2 == 2 {
+                //p3_6.set_low().unwrap();
+            //} else {
+                //p3_6.set_high().unwrap();
+            //}
+            //if count & 4 == 4 {
+                //p3_1.set_low().unwrap();
+            //} else {
+                //p3_1.set_high().unwrap();
+            //}
+            //count = count + 1;
         }
     } else {
         loop {}
@@ -348,8 +377,10 @@ fn PORT1() {
                 .unwrap()
                 .get_interrupt_vector()
             {
-                GpioVector::Pin2Isr => {blue_led.set_low().ok();
-                blue_led.set_high().ok()},
+                GpioVector::Pin2Isr => {
+                    blue_led.set_low().ok();
+                    blue_led.set_high().ok()
+                },
                 _ => panic!(),
             }
         });
@@ -371,4 +402,15 @@ fn WDT() {
         //     mybool.set();
         // });
     });
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> !
+{
+    free(|cs| {
+        BLUE_LED.borrow(&cs).borrow_mut().as_mut().map(|blue_led| {
+            blue_led.set_low().ok();
+        });
+    });
+    loop {}
 }

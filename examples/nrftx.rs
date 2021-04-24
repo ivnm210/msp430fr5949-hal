@@ -148,6 +148,15 @@ fn print_rec_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize)
     tx.bwrite_all(b" ").ok();
     print_u16(tx, cnt);
 }
+
+fn print_snd_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize)
+{
+    tx.bwrite_all(b"send = ").ok();
+    tx.bwrite_all(&buf[0..len-1]).ok();
+    let cnt : u16 = ((buf[30] as u16) << 8) + (buf[31] as u16);
+    tx.bwrite_all(b" ").ok();
+    print_u16(tx, cnt);
+}
 // #[cfg(not(debug_assertions))]
 // use panic_never as _;
 
@@ -287,39 +296,32 @@ fn main() -> ! {
                         if let Some(pipe) = nrf24rx.can_read().unwrap() {
                             if let Ok(pl) = nrf24rx.read() {
                                 if pl.len() > 0 {
-                                    //tx.bwrite_all(b"read = ").ok();
-                                    //tx.bwrite_all(pl.as_ref()).ok();
-                                    //tx.bwrite_all(b"\r\n").ok();
                                     print_rec_pkt(&mut tx, pl.as_ref(), pl.len()-2);
                                     pktcnt = pktcnt + 1;
                                     prepare_pkt(&mut txpkt, pktcnt);
                                     nextradiost = RadioState::RadioTx;
                                     //nrf24rx.flush_rx().unwrap();
-                                    nrf24 = nrf24rx.standby();
-                                    delay(100);
                                     break;
                                 }
                             }
                         }
-                        delay(100);
                         cnt = cnt + 1;
-                        progress(&mut tx, (cnt & 0xFF) as u8);
-                        if cnt > 10000 {
+                        //progress(&mut tx, (cnt & 0xFF) as u8);
+                        if cnt > 1000 {
                             nextradiost = RadioState::RadioTx;
-                            nrf24rx.flush_rx().unwrap();
-                            nrf24 = nrf24rx.standby();
+                            //nrf24rx.flush_rx().unwrap();
                             break;
                         }
                     }
+                    nrf24 = nrf24rx.standby();
+                    delay(500);
                 },
                 RadioState::RadioTx => {
                     let mut nrf24tx = nrf24.tx().unwrap();
                     loop {
                         if let Ok(test) = nrf24tx.can_send() {
                             if test {
-                                tx.bwrite_all(b"send = ").ok();
-                                tx.bwrite_all(&txpkt).ok();
-                                tx.bwrite_all(b"\r\n").ok();
+                                print_snd_pkt(&mut tx, &txpkt, txpkt.len()-2);
                                 nrf24tx.send(&txpkt).unwrap();
                                 nrf24tx.wait_empty().unwrap();
                                 nrf24tx.clear_interrupts().unwrap();
