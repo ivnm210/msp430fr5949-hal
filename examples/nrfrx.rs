@@ -320,6 +320,7 @@ fn main() -> ! {
                         //progress(&mut tx, cnt);
                         //progress2(&mut tx, 'R', cnt);
                     }
+                    //nrf24rx.flush_rx().unwrap();
                     nrf24 = nrf24rx.standby();
                     delay(100);
                 },

@@ -300,19 +300,19 @@ fn main() -> ! {
                                     pktcnt = pktcnt + 1;
                                     prepare_pkt(&mut txpkt, pktcnt);
                                     nextradiost = RadioState::RadioTx;
-                                    //nrf24rx.flush_rx().unwrap();
                                     break;
                                 }
                             }
                         }
                         cnt = cnt + 1;
                         //progress(&mut tx, (cnt & 0xFF) as u8);
-                        if cnt > 1000 {
+                        if cnt > 60000 {
                             nextradiost = RadioState::RadioTx;
                             //nrf24rx.flush_rx().unwrap();
                             break;
                         }
                     }
+                    nrf24rx.flush_rx().unwrap();
                     nrf24 = nrf24rx.standby();
                     delay(500);
                 },
