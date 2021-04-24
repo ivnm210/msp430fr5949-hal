@@ -310,12 +310,12 @@ fn main() -> ! {
                                 block!(tx.write('\r' as u8)).unwrap();
                                 block!(tx.write('\n' as u8)).unwrap();
                             }
-                            //if cnt == 1000 {
-                                //block!(tx.write('+' as u8)).unwrap();
-                                //block!(tx.write('\r' as u8)).unwrap();
-                                //block!(tx.write('\n' as u8)).unwrap();
-                                //break;
-                            //}
+                            if cnt == 1000 {
+                                block!(tx.write('+' as u8)).unwrap();
+                                block!(tx.write('\r' as u8)).unwrap();
+                                block!(tx.write('\n' as u8)).unwrap();
+                                break;
+                            }
                         }
                         //progress(&mut tx, cnt);
                         //progress2(&mut tx, 'R', cnt);
