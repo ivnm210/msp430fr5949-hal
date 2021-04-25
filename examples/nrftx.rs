@@ -127,11 +127,11 @@ fn progress<U: SerialUsci>(tx: &mut Tx<U>, cnt: u8) {
 fn prepare_pkt(pkt : &mut [u8;32], cnt : u16)
 {
     let mut i = 0u8;
-    if pkt[0] == 0x41 {
-        pkt[0] = 0x61;
-    } else {
-        pkt[0] = 0x41
-    }
+    //if pkt[0] == 0x41 {
+        //pkt[0] = 0x61;
+    //} else {
+        //pkt[0] = 0x41
+    //}
     for n in 0..29 {
         pkt[n] = pkt[0]+i;
         i = i+1;
@@ -336,7 +336,26 @@ fn main() -> ! {
 
                 },
             }
+            let ch = match rx.read() {
+                Ok(c) => c,
+                Err(err) => {
+                    (match err {
+                        nb::Error::Other(RecvError::Parity) => '!',
+                        nb::Error::Other(RecvError::Overrun(_)) => '}',
+                        nb::Error::Other(RecvError::Framing) => '?',
+                        nb::Error::WouldBlock => '#',
+                    }) as u8
+                }
+            };
 
+            if ch == 0x41u8 {
+                txpkt[0] = 0x41u8;
+                block!(tx.write(ch as u8)).unwrap();
+            }
+            if ch == 0x61u8 {
+                txpkt[0] = 0x61u8;
+                block!(tx.write(ch as u8)).unwrap();
+            }
             if count & 1 == 1 {
                 p3_4.set_low().unwrap();
             } else {

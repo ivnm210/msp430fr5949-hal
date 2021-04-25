@@ -284,6 +284,7 @@ fn main() -> ! {
         txpkt[1] = 0x4b;
         let mut nextradiost = RadioState::RadioRx;
         let mut pktcnt = 0;
+        let mut on = false;
 
         loop {
 
@@ -298,6 +299,12 @@ fn main() -> ! {
                             if let Ok(pl) = nrf24rx.read() {
                                 if pl.len() > 0 {
                                     print_rec_pkt(&mut tx, pl.as_ref(), pl.len()-2);
+                                    if pl.as_ref()[0] == 0x41u8 {
+                                        on = true;
+                                    }
+                                    if pl.as_ref()[0] == 0x61u8 {
+                                        on = false;
+                                    }
                                     nextradiost = RadioState::RadioTx;
                                     break;
                                 }
@@ -343,6 +350,11 @@ fn main() -> ! {
                 RadioState::RadioStandby => {
 
                 },
+            }
+            if on {
+                p3_4.set_low().unwrap();
+            } else {
+                p3_4.set_high().unwrap();
             }
 
             //if count & 1 == 1 {
