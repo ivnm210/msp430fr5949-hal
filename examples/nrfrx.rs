@@ -139,13 +139,20 @@ fn progress2<U: SerialUsci>(tx: &mut Tx<U>, ch: char, cnt: u16) {
     // block!(tx.write('\n' as u8)).unwrap();
 }
 
-fn print_rec_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize)
+fn prepare_pkt(pkt : &mut [u8;32], cnt : u16)
+{
+    pkt[30] = ((cnt >> 8) & 0xFF) as u8;
+    pkt[31] = (cnt & 0xff) as u8;
+}
+
+fn print_rec_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize) -> u16
 {
     tx.bwrite_all(b"read = ").unwrap();
     tx.bwrite_all(&buf[0..len-1]).unwrap();
     let cnt : u16 = ((buf[30] as u16) << 8) + (buf[31] as u16);
     tx.bwrite_all(b" ").unwrap();
     print_u16(tx, cnt);
+    cnt
 }
 
 fn print_snd_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize)
@@ -175,6 +182,9 @@ fn main() -> ! {
             .freeze(&mut fram);
 
         let pmm = Pmm::new(periph.PMM);
+
+        delay(100000);
+
         let p3 = Batch::new(P3 { port : periph.PORT_3_4})
             .config_pin1(|p| p.to_output())
             .config_pin3(|p| p.to_output())
@@ -280,7 +290,8 @@ fn main() -> ! {
 //
 //
         let mut radiost = RadioState::RadioStandby;
-        let mut txpkt = [0x4fu8; 2]; //send back OK
+        let mut txpkt = [0x00u8; 32]; //send back OK
+        txpkt[0] = 0x4f;
         txpkt[1] = 0x4b;
         let mut nextradiost = RadioState::RadioRx;
         let mut pktcnt = 0;
@@ -298,7 +309,9 @@ fn main() -> ! {
                         if let Ok(Some(pipe)) = nrf24rx.can_read() {
                             if let Ok(pl) = nrf24rx.read() {
                                 if pl.len() > 0 {
-                                    print_rec_pkt(&mut tx, pl.as_ref(), pl.len()-2);
+                                    pktcnt = print_rec_pkt(&mut tx, pl.as_ref(), pl.len()-2);
+                                    txpkt[30] = ((pktcnt >> 8) & 0xFF) as u8;
+                                    txpkt[31] = (pktcnt & 0xff) as u8;
                                     if pl.as_ref()[0] == 0x41u8 {
                                         on = true;
                                     }

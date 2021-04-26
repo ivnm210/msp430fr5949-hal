@@ -176,6 +176,9 @@ fn main() -> ! {
             .freeze(&mut fram);
 
         let pmm = Pmm::new(periph.PMM);
+
+        delay(100000);
+
         let p3 = Batch::new(P3 { port : periph.PORT_3_4})
             .config_pin1(|p| p.to_output())
             .config_pin3(|p| p.to_output())
@@ -300,21 +303,22 @@ fn main() -> ! {
                                     pktcnt = pktcnt + 1;
                                     prepare_pkt(&mut txpkt, pktcnt);
                                     nextradiost = RadioState::RadioTx;
+                                    delay(200000);
                                     break;
                                 }
                             }
                         }
                         cnt = cnt + 1;
                         //progress(&mut tx, (cnt & 0xFF) as u8);
-                        if cnt > 60000 {
+                        if cnt > 10000 {
                             nextradiost = RadioState::RadioTx;
                             //nrf24rx.flush_rx().unwrap();
+                            delay(500);
                             break;
                         }
                     }
                     nrf24rx.flush_rx().unwrap();
                     nrf24 = nrf24rx.standby();
-                    delay(500);
                 },
                 RadioState::RadioTx => {
                     let mut nrf24tx = nrf24.tx().unwrap();
