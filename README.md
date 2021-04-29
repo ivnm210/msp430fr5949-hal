@@ -15,6 +15,12 @@ Licensed under either of
 
 at your option.
 
+- not all examples work yet
+
+## Verified:
+- nrfrx - is a NRF24 radio server
+- nrftx - is a NRF24 client
+
 ## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
