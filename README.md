@@ -1,7 +1,7 @@
 # `msp430fr5949-hal`
 
 > HAL for microcontrollers MSP430FR5949
-> derived from msp430fr2x5x-hal
+> derived from msp430fr2x5x-hal - 
 > work in progress
 
 # License
