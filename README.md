@@ -18,6 +18,7 @@ at your option.
 - not all examples work yet
 
 ## Verified:
+- gpio, spi and uart work fine
 - nrfrx - is a NRF24 radio server
 - nrftx - is a NRF24 client
 
