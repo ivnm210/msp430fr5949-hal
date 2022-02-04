@@ -44,10 +44,11 @@ impl Fram {
     pub unsafe fn set_wait_states(&mut self, wait: WaitStates) {
         self.periph
             .frctl0
-            // .write(|w| w.frctlpw().bits(PASSWORD).nwaits().bits(wait as u8));
-            .write(|w| {
+            .write(|w| w.frctlpw().bits(PASSWORD).nwaits().bits(wait as u8)
+            /*.write(|w| {
              unsafe{w.bits(0xa500)}
              .nwaits().bits(wait as u8)
-            });
+            }*/
+            );
     }
 }

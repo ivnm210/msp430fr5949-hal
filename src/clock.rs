@@ -7,13 +7,14 @@
 //!
 //! DCO with FLL is supported on MCLK for select frequencies. Supporting arbitrary frequencies on
 //! the DCO requires complex calibration routines not supported by the HAL.
-
 use crate::fram::{Fram, WaitStates};
 use msp430fr5949 as pac;
 // use pac::cs::csctl1::DCORSEL_W;
 use pac::cs::csctl2::{SELA_A, SELM_A, SELS_A};
 pub use pac::cs::csctl2::{SELS_A as SmclkSel};
 pub use pac::cs::csctl3::{DIVM_A as MclkDiv, DIVS_A as SmclkDiv};
+
+use crate::asm;
 
 /// REFOCLK frequency
 pub const REFOCLK: u16 = 32768;
@@ -87,14 +88,14 @@ impl SclkSel {
         }
     }
 
-    #[inline(always)]
-    fn freq(self) -> u32 {
-        match self {
-            SclkSel::Dcoclk(sel) => sel.freq(),
-            SclkSel::Vloclk => VLOCLK as u32,
-            SclkSel::Refoclk => REFOCLK as u32,
-        }
-    }
+    // #[inline(always)]
+    // fn freq(self) -> u32 {
+        // match self {
+            // SclkSel::Dcoclk(sel) => sel.freq(),
+            // SclkSel::Vloclk => VLOCLK as u32,
+            // SclkSel::Refoclk => REFOCLK as u32,
+        // }
+    // }
 }
 
 /// Selectable DCOCLK frequencies when using factory trim settings.
@@ -331,14 +332,36 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
 #[inline(always)]
 fn fll_off() {
+//    #![feature(asm)]
     const FLAG: u8 = 1 << 6;
-    unsafe { llvm_asm!("bis.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
+    // unsafe { llvm_asm!("bis.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
+    match () {
+        #[cfg(target_arch = "msp430")]
+        () => unsafe {
+            // asm!("bis.b {{ nop");
+            asm!("bis.b {flag}, SR" , flag = const FLAG, options(nostack) );
+        },
+        #[cfg(not(target_arch = "msp430"))]
+        () => {}
+    }
+    //unsafe { asm!("bis.b {flag}, SR" , flag = const 64, options(nostack) ) };
 }
 
 #[inline(always)]
 fn fll_on() {
+//    #![feature(asm)]
     const FLAG: u8 = 1 << 6;
-    unsafe { llvm_asm!("bic.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
+    // unsafe { llvm_asm!("bic.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
+    match () {
+        #[cfg(target_arch = "msp430")]
+        () => unsafe {
+            // asm!("bis.b {{ nop");
+            asm!("bic.b {flag}, SR" , flag = const FLAG, options(nostack) );
+        },
+        #[cfg(not(target_arch = "msp430"))]
+        () => {}
+    }
+    //unsafe { asm!("bic.b {flag}, SR" , flag = const 64 ) };
 }
    
 /*
@@ -407,7 +430,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
             let w = w.divm().variant(self.mclk_div).diva().diva_1();
             match self.smclk.div() {
                 //Some(div) => w.divs().variant(div),
-                Some(div) => w.divs().variant(SmclkDiv::DIVS_0),
+                Some(_div) => w.divs().variant(SmclkDiv::DIVS_0),
                 None => w.divs().variant(SmclkDiv::DIVS_0),
             }
         });

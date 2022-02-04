@@ -4,6 +4,14 @@
 # For running
 runner = "./run.sh"
 
+# rustflags = [
+#     "-C", "link-arg=-nostartfiles",
+#   "-C", "link-arg=-mmcu=msp430fr5949",
+#   "-C", "link-arg=-Tlink.x",
+#     "-C", "linker=msp430-elf-gcc",
+#     "-C", "linker-flavor=gcc",
+# ]
+
 rustflags = [
     "-C", "link-arg=-nostartfiles",
 #    "-C", "link-arg=-c",
@@ -20,6 +28,7 @@ rustflags = [
     "-C", "link-arg=-Tlink.x",
     "-C", "linker=msp430-elf-gcc",
     "-C", "linker-flavor=gcc",
+#"-C", "linker-flavor=ld.lld",
 ]
 
 [build]

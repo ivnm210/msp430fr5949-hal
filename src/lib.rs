@@ -23,7 +23,10 @@
 
 #![no_std]
 #![feature(specialization)]
-#![feature(llvm_asm)]
+#![feature(asm_experimental_arch)]
+// #![feature(llvm_asm)]
+//#![feature(asm_experimental_arch)]
+#![feature(asm_const)]
 #![deny(missing_docs)]
 
 pub mod batch_gpio;
@@ -43,4 +46,5 @@ pub mod watchdog;
 mod hw_traits;
 mod util;
 
+use core::arch::asm;
 pub use msp430fr5949 as pac;

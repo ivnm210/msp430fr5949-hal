@@ -2,13 +2,13 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use msp430::{asm};
+use msp430::asm;
 use core::cell::RefCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430_rt::entry;
 use msp430fr5949_hal::{
-    clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
+    clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
     gpio::{Batch, GpioVector, PxIV, P1, P2, P3, Output, Pin, Pin3},
     pmm::Pmm,
@@ -17,7 +17,7 @@ use msp430fr5949_hal::{
     watchdog::Wdt,
 };
 use nb::block;
-use msp430::interrupt::{enable as enable_int, free, Mutex};
+use msp430::interrupt::{free, Mutex};
 use msp430fr5949::interrupt;
 extern crate embedded_nrf24l01;
 use embedded_nrf24l01::*;
@@ -49,15 +49,15 @@ fn print_u8<U: SerialUsci>(tx: &mut Tx<U>, num: u8) {
     write(tx, '\n');
 }
 
-fn print_u16<U: SerialUsci>(tx: &mut Tx<U>, num: u16) {
-    write(tx, '0');
-    write(tx, 'x');
-    print_hex(tx, num >> 12);
-    print_hex(tx, (num >> 8) & 0xF);
-    print_hex(tx, (num >> 4) & 0xF);
-    print_hex(tx, num & 0xF);
-    write(tx, '\n');
-}
+// fn print_u16<U: SerialUsci>(tx: &mut Tx<U>, num: u16) {
+    // write(tx, '0');
+    // write(tx, 'x');
+    // print_hex(tx, num >> 12);
+    // print_hex(tx, (num >> 8) & 0xF);
+    // print_hex(tx, (num >> 4) & 0xF);
+    // print_hex(tx, num & 0xF);
+    // write(tx, '\n');
+// }
 
 fn print_hex<U: SerialUsci>(tx: &mut Tx<U>, h: u16) {
     let c = match h {
@@ -126,7 +126,7 @@ fn main() -> ! {
         let p2 = Batch::new(P2 { port : periph.PORT_1_2})
              .split(&pmm);
 
-        let (mut tx, mut rx) = SerialConfig::new(
+        let (mut tx, mut _rx) = SerialConfig::new(
             periph.USCI_A1_UART_MODE,
             BitOrder::LsbFirst,
             BitCount::EightBits,
@@ -168,21 +168,21 @@ fn main() -> ! {
         p3_6.set_high().unwrap();
         let p1iv = p1.pxiv;
 
-        free(|cs| *BLUE_LED.borrow(&cs).borrow_mut() = Some(p3_3));
-        free(|cs| *P1IV.borrow(&cs).borrow_mut() = Some(p1iv));
+        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
+        free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
         let mybool : bool = true;
-        free(|cs| *MYBOOL.borrow(&cs).borrow_mut() = Some(mybool));
+        free(|cs| *MYBOOL.borrow(*cs).borrow_mut() = Some(mybool));
 
         let ce = p2.pin4.to_output();
         let csn = p3.pin0.to_output();
         // ce.set_low().unwrap();
         // csn.set_high().unwrap();
-        tx.bwrite_all(b"we have ce csn\r\n").ok();
+        tx.bwrite_all(b"we have ce csn\r\n").unwrap();
         let mut nrf24 = NRF24L01::new(ce, csn, spi).unwrap();
-        tx.bwrite_all(b"We have nrf\r\n");
+        tx.bwrite_all(b"We have nrf\r\n").unwrap();
 
         nrf24.set_frequency(108).unwrap();
-        tx.bwrite_all(b"We have frequency\r\n");
+        tx.bwrite_all(b"We have frequency\r\n").unwrap();
         nrf24.set_auto_retransmit(0, 0).unwrap();
         nrf24.set_rf(&nrf24::DataRate::R250Kbps, 3).unwrap();
         nrf24.set_pipes_rx_enable(&[true, false, false, false, false, false]).unwrap();
@@ -194,7 +194,7 @@ fn main() -> ! {
 
         let mut count = 0u8;
 
-        tx.bwrite_all(b"HELLO\n\r").ok();
+        tx.bwrite_all(b"HELLO\n\r").unwrap();
 
         wdt.set_aclk(&aclk)
         // wdt.set_smclk(&smclk)
@@ -229,10 +229,10 @@ fn main() -> ! {
         // let mut nrf24tx = nrf24.tx().unwrap();
 
         //if let Ok(Some(pipe)) = nrf24rx.can_read() {
-        if let pipe = nrf24rx.can_read().unwrap() {
+        if let Some(_) = nrf24rx.can_read().unwrap() {
             if let Ok(pl) = nrf24rx.read() {
                 if pl.len() > 0 {
-                    tx.bwrite_all(b"read = ");
+                    tx.bwrite_all(b"read = ").unwrap();
                     // tx.bwrite_all(pl.as_ref());
                     // tx.bwrite_all(b"\r\n");
                 }
@@ -251,17 +251,17 @@ fn main() -> ! {
         // tx.bwrite_all(b"start loop\r\n");
         loop {
             delay(100_000);
-            nrf24rx = nrf24.rx().unwrap();
+            let mut lnrf24rx = nrf24.rx().unwrap();
             delay(20_000);
             // nrf24rx = nrf24.rx().unwrap();
             // if mybool {
-                if let pipe = nrf24rx.can_read().unwrap() {
-                    if let Ok(pl) = nrf24rx.read() {
+                if let Ok(Some(_p_no)) = lnrf24rx.can_read() {
+                    if let Ok(pl) = lnrf24rx.read() {
                         progress(&mut tx, count & 3);
                         if pl.len() > 0 {
-                            tx.bwrite_all(b"read = ");
-                            pl.as_ref().iter().map(|b| {print_u8(&mut tx, *b)});
-                            tx.bwrite_all(b"\r\n");
+                            tx.bwrite_all(b"read = ").unwrap();
+                            let _ = pl.as_ref().iter().map(|b| {print_u8(&mut tx, *b)});
+                            tx.bwrite_all(b"\r\n").unwrap();
                         }
                     }
                 }
@@ -274,7 +274,7 @@ fn main() -> ! {
             //         tx.bwrite_all(b"no carrier\r\n");
             //     }
             // }
-            nrf24 = nrf24rx.standby();
+            nrf24 = lnrf24rx.standby();
             //     free(|cs| {
             //         MYBOOL.borrow(&cs).borrow_mut().as_mut().map(|mybool| {
             //             *mybool = false;
@@ -295,19 +295,19 @@ fn main() -> ! {
 
             // }
 
-            // nrf24tx = nrf24rx.standby().tx().unwrap();
-            // nrf24tx = nrf24.tx().unwrap();
-
-            // if let test = nrf24tx.can_send().unwrap() {
-            //     let pkt = [0x41u8, 0x42u8, 0x43u8, 0x44u8];
-            //     tx.bwrite_all(&pkt);
-            //     if let Ok(_r) = nrf24tx.send(&pkt) {
-            //         tx.bwrite_all(b" send ok\r\n");
-            //     }
-            //     nrf24tx.wait_empty();
-            // }
-            // nrf24tx.clear_interrupts().unwrap();
-            // nrf24 = nrf24tx.standby().unwrap();
+            let mut lnrf24tx = nrf24.tx().unwrap();
+            if let Ok(can) = lnrf24tx.can_send() {
+                if can {
+                    let pkt = [0x41u8, 0x42u8, 0x43u8, 0x44u8];
+                    tx.bwrite_all(&pkt).unwrap();
+                    if let Ok(_r) = lnrf24tx.send(&pkt) {
+                        tx.bwrite_all(b" send ok\r\n").unwrap();
+                    }
+                    lnrf24tx.wait_empty().unwrap();
+                }
+            }
+            lnrf24tx.clear_interrupts().unwrap();
+            nrf24 = lnrf24tx.standby().unwrap();
 
             if count & 1 == 1 {
                 p3_4.set_low().unwrap();
@@ -349,9 +349,9 @@ fn main() -> ! {
 #[interrupt]
 fn PORT1() {
     free(|cs| {
-        BLUE_LED.borrow(&cs).borrow_mut().as_mut().map(|blue_led| {
+        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
             match P1IV
-                .borrow(&cs)
+                .borrow(*cs)
                 .borrow_mut()
                 .as_mut()
                 .unwrap()
@@ -372,9 +372,9 @@ fn PORT1() {
 #[interrupt]
 fn WDT() {
     free(|cs| {
-        //BLUE_LED.borrow(&cs).borrow_mut().as_mut().map(|blue_led| {
-            //blue_led.set_low().ok();
-            //blue_led.set_high().ok();
-        //})
+        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+            blue_led.set_low().ok();
+            blue_led.set_high().ok();
+        })
     });
 }

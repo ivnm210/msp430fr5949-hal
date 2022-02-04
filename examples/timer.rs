@@ -7,7 +7,7 @@ use msp430_rt::entry;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
-    gpio::Batch,
+    gpio::{Batch, P3},
     pmm::Pmm,
     timer::{CapCmp, SubTimer, Timer, TimerConfig, TimerDiv, TimerExDiv, TimerParts3, TimerPeriph},
     watchdog::Wdt,
@@ -25,14 +25,14 @@ fn main() -> ! {
     Wdt::constrain(periph.WATCHDOG_TIMER);
 
     let pmm = Pmm::new(periph.PMM);
-    let p1 = Batch::new(periph.PORT_1_2)
-        .config_pin0(|p| p.to_output())
+    let p3 = Batch::new(P3 { port : periph.PORT_3_4})
+        .config_pin1(|p| p.to_output())
         .split(&pmm);
-    let mut p1_0 = p1.pin0;
+    let mut p3_1 = p3.pin1;
 
     let (_smclk, aclk) = ClockConfig::new(periph.CS)
-        .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_1)
-        .smclk_on(SmclkDiv::DIVS_1)
+        .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
+        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
         .aclk_vloclk()
         .freeze(&mut fram);
 
@@ -46,11 +46,11 @@ fn main() -> ! {
     set_time(&mut timer, &mut subtimer, 500);
     loop {
         block!(subtimer.wait()).void_unwrap();
-        p1_0.set_high().void_unwrap();
+        p3_1.set_high().void_unwrap();
         // first 0.5 s of timer countdown expires while subtimer expires, so this should only block
         // for 0.5 s
         block!(timer.wait()).void_unwrap();
-        p1_0.set_low().void_unwrap();
+        p3_1.set_low().void_unwrap();
     }
 }
 

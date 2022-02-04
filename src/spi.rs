@@ -1,18 +1,16 @@
 //! Serial Peripheral Interface (SPI) bus
 
-use crate::clock::{Aclk, Clock, Smclk};
-use crate::gpio::{Alternate2, Pin, Pin0, Pin1, Pin2, Pin4, Pin5, Pin6, Pin7}; //, P1, P4};
+//use crate::clock::{Aclk, Clock, Smclk};
+use crate::gpio::{Alternate2, Pin,  Pin2, Pin6, Pin7}; //, P1, P4};
 // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
 use crate::gpio::{P1, P2};
-use crate::serial::{SerialUsci, Tx};
-use core::marker::PhantomData;
 //use embedded_hal::serial::{Read, Write};
-use embedded_hal::spi::{Mode, MODE_0, MODE_1, MODE_2, MODE_3, FullDuplex};
-use msp430fr5949::{USCI_B0_SPI_MODE, USCI_A1_UART_MODE};
-use msp430fr5949 as pac;
+use embedded_hal::spi::{Mode, FullDuplex};
+use msp430fr5949::{USCI_B0_SPI_MODE};
+//use msp430fr5949 as pac;
 use nb;
-use nb::block;
-use embedded_hal::prelude::_embedded_hal_blocking_serial_Write;
+//use nb::block;
+// use embedded_hal::prelude::_embedded_hal_blocking_serial_Write;
 // use tm4c123x::{SSI0, SSI1, SSI2, SSI3};
 
 /// SPI error
@@ -71,7 +69,7 @@ macro_rules! hal {
                 pub fn $spiX (
                     spi: $SPIX,
                     pins: (SCK, MISO, MOSI),
-                    mode: Mode,
+                    _mode: Mode,
                     //tx: Tx<USCI>,
                     // freq: F,
                     // clocks: &Clocks,
