@@ -46,5 +46,5 @@ pub mod watchdog;
 mod hw_traits;
 mod util;
 
-//use core::arch::asm;
+use core::arch::asm;
 pub use msp430fr5949 as pac;

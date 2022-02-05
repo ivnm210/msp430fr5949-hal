@@ -14,7 +14,7 @@ pub use pac::cs::csctl2::SELS_A as SmclkSel;
 use pac::cs::csctl2::{SELA_A, SELM_A, SELS_A};
 pub use pac::cs::csctl3::{DIVM_A as MclkDiv, DIVS_A as SmclkDiv};
 
-//use crate::asm;
+use crate::asm;
 
 /// REFOCLK frequency
 pub const REFOCLK: u16 = 32768;
@@ -334,14 +334,14 @@ fn fll_off() {
     //    #![feature(asm)]
     const FLAG: u8 = 1 << 6;
     // unsafe { llvm_asm!("bis.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
-    // match () {
-    //     #[cfg(target_arch = "msp430")]
-    //     () => unsafe {
-    //         asm!("bis.b {flag}, SR" , flag = const FLAG, options(nostack) );
-    //     },
-    //     #[cfg(not(target_arch = "msp430"))]
-    //     () => {}
-    // }
+    match () {
+        #[cfg(target_arch = "msp430")]
+        () => unsafe {
+            asm!("bis.b {flag}, SR" , flag = const FLAG, options(nostack) );
+        },
+        #[cfg(not(target_arch = "msp430"))]
+        () => {}
+    }
 }
 
 #[inline(always)]
@@ -349,14 +349,14 @@ fn fll_on() {
     //    #![feature(asm)]
     const FLAG: u8 = 1 << 6;
     // unsafe { llvm_asm!("bic.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
-    // match () {
-    //     #[cfg(target_arch = "msp430")]
-    //     () => unsafe {
-    //         asm!("bic.b {flag}, SR" , flag = const FLAG, options(nostack) );
-    //     },
-    //     #[cfg(not(target_arch = "msp430"))]
-    //     () => {}
-    // }
+    match () {
+        #[cfg(target_arch = "msp430")]
+        () => unsafe {
+            asm!("bic.b {flag}, SR" , flag = const FLAG, options(nostack) );
+        },
+        #[cfg(not(target_arch = "msp430"))]
+        () => {}
+    }
 }
 
 /*
