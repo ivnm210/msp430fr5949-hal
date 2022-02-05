@@ -10,11 +10,11 @@
 use crate::fram::{Fram, WaitStates};
 use msp430fr5949 as pac;
 // use pac::cs::csctl1::DCORSEL_W;
+pub use pac::cs::csctl2::SELS_A as SmclkSel;
 use pac::cs::csctl2::{SELA_A, SELM_A, SELS_A};
-pub use pac::cs::csctl2::{SELS_A as SmclkSel};
 pub use pac::cs::csctl3::{DIVM_A as MclkDiv, DIVS_A as SmclkDiv};
 
-use crate::asm;
+//use crate::asm;
 
 /// REFOCLK frequency
 pub const REFOCLK: u16 = 32768;
@@ -40,8 +40,8 @@ impl MclkSel {
     #[inline(always)]
     fn selm(&self) -> SELM_A {
         match self {
-            MclkSel::Vloclk => SELM_A::SELM_1, //SELM_A::VLOCLK,
-            MclkSel::Refoclk => SELM_A::SELM_0, //SELM_A::REFOCLK,
+            MclkSel::Vloclk => SELM_A::SELM_1,    //SELM_A::VLOCLK,
+            MclkSel::Refoclk => SELM_A::SELM_0,   //SELM_A::REFOCLK,
             MclkSel::Dcoclk(_) => SELM_A::SELM_3, //SELM_A::DCOCLKDIV,
         }
     }
@@ -57,7 +57,7 @@ impl AclkSel {
     #[inline(always)]
     fn sela(self) -> SELA_A {
         match self {
-            AclkSel::Vloclk => SELA_A::SELA_1, //SELA_A::VLOCLK,
+            AclkSel::Vloclk => SELA_A::SELA_1,  //SELA_A::VLOCLK,
             AclkSel::Refoclk => SELA_A::SELA_0, //SELA_A::REFOCLK,
         }
     }
@@ -83,18 +83,18 @@ impl SclkSel {
     fn sels(self) -> SELS_A {
         match self {
             SclkSel::Dcoclk(_) => SELS_A::SELS_3, //SELA_A::VLOCLK,
-            SclkSel::Vloclk => SELS_A::SELS_1, //SELA_A::VLOCLK,
-            SclkSel::Refoclk => SELS_A::SELS_0, //SELA_A::REFOCLK,
+            SclkSel::Vloclk => SELS_A::SELS_1,    //SELA_A::VLOCLK,
+            SclkSel::Refoclk => SELS_A::SELS_0,   //SELA_A::REFOCLK,
         }
     }
 
     // #[inline(always)]
     // fn freq(self) -> u32 {
-        // match self {
-            // SclkSel::Dcoclk(sel) => sel.freq(),
-            // SclkSel::Vloclk => VLOCLK as u32,
-            // SclkSel::Refoclk => REFOCLK as u32,
-        // }
+    // match self {
+    // SclkSel::Dcoclk(sel) => sel.freq(),
+    // SclkSel::Vloclk => VLOCLK as u32,
+    // SclkSel::Refoclk => REFOCLK as u32,
+    // }
     // }
 }
 
@@ -128,7 +128,7 @@ impl DcoclkFreqSel {
             DcoclkFreqSel::_2MHz => false, //0,
             DcoclkFreqSel::_4MHz => false, //0,
             DcoclkFreqSel::_7MHz => false, //0,
-            DcoclkFreqSel::_8MHz => true, //1,
+            DcoclkFreqSel::_8MHz => true,  //1,
             DcoclkFreqSel::_16MHz => true, //1,
             DcoclkFreqSel::_21MHz => true, //1,
             DcoclkFreqSel::_24MHz => true, //1,
@@ -148,7 +148,7 @@ impl DcoclkFreqSel {
             DcoclkFreqSel::_24MHz => 732,
         }
     }
-    
+
     #[inline(always)]
     fn dcofsel(self) -> u8 {
         match self {
@@ -257,9 +257,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select DCOCLK for Sclk
     #[inline]
-    pub fn sclk_dcoclk(mut self,
-        target_freq: DcoclkFreqSel
-    ) -> Self {
+    pub fn sclk_dcoclk(mut self, target_freq: DcoclkFreqSel) -> Self {
         self.sclk_sel = SclkSel::Dcoclk(target_freq);
         self
     }
@@ -313,13 +311,14 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Enable SMCLK and set SMCLK divider, which divides the MCLK frequency
     #[inline]
-    pub fn smclk_on(self,
-                    div: SmclkDiv,
-                    target_freq: DcoclkFreqSel) -> ClockConfig<MCLK, SmclkDefined> {
+    pub fn smclk_on(
+        self,
+        div: SmclkDiv,
+        target_freq: DcoclkFreqSel,
+    ) -> ClockConfig<MCLK, SmclkDefined> {
         ClockConfig {
-        sclk_sel: SclkSel::Dcoclk(target_freq),
-        ..make_clkconf!(self, self.mclk, SmclkDefined(div))
-
+            sclk_sel: SclkSel::Dcoclk(target_freq),
+            ..make_clkconf!(self, self.mclk, SmclkDefined(div))
         }
     }
 
@@ -332,38 +331,34 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
 #[inline(always)]
 fn fll_off() {
-//    #![feature(asm)]
+    //    #![feature(asm)]
     const FLAG: u8 = 1 << 6;
     // unsafe { llvm_asm!("bis.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
-    match () {
-        #[cfg(target_arch = "msp430")]
-        () => unsafe {
-            // asm!("bis.b {{ nop");
-            asm!("bis.b {flag}, SR" , flag = const FLAG, options(nostack) );
-        },
-        #[cfg(not(target_arch = "msp430"))]
-        () => {}
-    }
-    //unsafe { asm!("bis.b {flag}, SR" , flag = const 64, options(nostack) ) };
+    // match () {
+    //     #[cfg(target_arch = "msp430")]
+    //     () => unsafe {
+    //         asm!("bis.b {flag}, SR" , flag = const FLAG, options(nostack) );
+    //     },
+    //     #[cfg(not(target_arch = "msp430"))]
+    //     () => {}
+    // }
 }
 
 #[inline(always)]
 fn fll_on() {
-//    #![feature(asm)]
+    //    #![feature(asm)]
     const FLAG: u8 = 1 << 6;
     // unsafe { llvm_asm!("bic.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
-    match () {
-        #[cfg(target_arch = "msp430")]
-        () => unsafe {
-            // asm!("bis.b {{ nop");
-            asm!("bic.b {flag}, SR" , flag = const FLAG, options(nostack) );
-        },
-        #[cfg(not(target_arch = "msp430"))]
-        () => {}
-    }
-    //unsafe { asm!("bic.b {flag}, SR" , flag = const 64 ) };
+    // match () {
+    //     #[cfg(target_arch = "msp430")]
+    //     () => unsafe {
+    //         asm!("bic.b {flag}, SR" , flag = const FLAG, options(nostack) );
+    //     },
+    //     #[cfg(not(target_arch = "msp430"))]
+    //     () => {}
+    // }
 }
-   
+
 /*
     CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
     // Set user's frequency selection for DCO
@@ -371,7 +366,7 @@ fn fll_on() {
 
     FRCTL0_H = 0xA5;
     FRCTL0_L = 1 << 4;
-    
+
     //configure MCLK, SMCLK to be sourced by DCOCLK
     CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
     CSCTL3 = DIVA__2 | DIVS__1 | DIVM__1; //C DIVM__2;
@@ -392,17 +387,20 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
             self.periph
                 .csctl1
                 // .write(|w| w.dcorsel().variant(target_freq.dcorsel()));
-                .write(|w|{ 
+                .write(|w| {
                     if target_freq.dcorsel() {
                         w.dcorsel().set_bit().dcofsel().bits(target_freq.dcofsel())
                     } else {
-                        w.dcorsel().clear_bit().dcofsel().bits(target_freq.dcofsel())
+                        w.dcorsel()
+                            .clear_bit()
+                            .dcofsel()
+                            .bits(target_freq.dcofsel())
                     }
                 });
             // self.periph.csctl2.write(|w| {
-                // unsafe { w.flln().bits(target_freq.multiplier() - 1) }
-                    // .flld()
-                    // ._1()
+            // unsafe { w.flln().bits(target_freq.multiplier() - 1) }
+            // .flld()
+            // ._1()
             // });
 
             msp430::asm::nop();
@@ -434,9 +432,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
                 None => w.divs().variant(SmclkDiv::DIVS_0),
             }
         });
-        self.periph.csctl4.write(|w| {
-            w.lfxtdrive().lfxtdrive_3()
-        });
+        self.periph.csctl4.write(|w| w.lfxtdrive().lfxtdrive_3());
         //self.periph.csctl0.modify(|r,w| unsafe { w.bits(r.bits() & 0x00ff) });
     }
 
@@ -514,4 +510,3 @@ impl Clock for Aclk {
         self.0
     }
 }
-
