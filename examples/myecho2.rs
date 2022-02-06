@@ -2,26 +2,26 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use msp430::asm;
 use core::cell::RefCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
+use msp430::asm;
+use msp430::interrupt::{free, Mutex};
 use msp430_rt::entry;
+use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
-    gpio::{Batch, GpioVector, PxIV, P1, P2, P3, Output, Pin, Pin3},
+    gpio::{Batch, GpioVector, Output, Pin, Pin3, PxIV, P1, P2, P3},
     pmm::Pmm,
     serial::*,
     spi::*,
     watchdog::Wdt,
 };
 use nb::block;
-use msp430::interrupt::{free, Mutex};
-use msp430fr5949::interrupt;
 extern crate embedded_nrf24l01;
-use embedded_nrf24l01::*;
 use embedded_nrf24l01 as nrf24;
+use embedded_nrf24l01::*;
 
 // #[cfg(debug_assertions)]
 use panic_msp430 as _;
@@ -35,7 +35,7 @@ fn delay(n: u32) {
     loop {
         asm::nop();
         i += 1;
-            if i == n {
+        if i == n {
             break;
         }
     }
@@ -50,13 +50,13 @@ fn print_u8<U: SerialUsci>(tx: &mut Tx<U>, num: u8) {
 }
 
 // fn print_u16<U: SerialUsci>(tx: &mut Tx<U>, num: u16) {
-    // write(tx, '0');
-    // write(tx, 'x');
-    // print_hex(tx, num >> 12);
-    // print_hex(tx, (num >> 8) & 0xF);
-    // print_hex(tx, (num >> 4) & 0xF);
-    // print_hex(tx, num & 0xF);
-    // write(tx, '\n');
+// write(tx, '0');
+// write(tx, 'x');
+// print_hex(tx, num >> 12);
+// print_hex(tx, (num >> 8) & 0xF);
+// print_hex(tx, (num >> 4) & 0xF);
+// print_hex(tx, num & 0xF);
+// write(tx, '\n');
 // }
 
 fn print_hex<U: SerialUsci>(tx: &mut Tx<U>, h: u16) {
@@ -87,7 +87,7 @@ fn write<U: SerialUsci>(tx: &mut Tx<U>, ch: char) {
 }
 
 fn progress<U: SerialUsci>(tx: &mut Tx<U>, cnt: u8) {
-    let ch : char = match cnt {
+    let ch: char = match cnt {
         1 => '\\',
         3 => '/',
         _ => '-',
@@ -116,15 +116,19 @@ fn main() -> ! {
             .freeze(&mut fram);
 
         let pmm = Pmm::new(periph.PMM);
-        let p3 = Batch::new(P3 { port : periph.PORT_3_4})
-            .config_pin1(|p| p.to_output())
-            .config_pin3(|p| p.to_output())
-            .config_pin4(|p| p.to_output())
-            .config_pin6(|p| p.to_output())
-            .split(&pmm);
+        let p3 = Batch::new(P3 {
+            port: periph.PORT_3_4,
+        })
+        .config_pin1(|p| p.to_output())
+        .config_pin3(|p| p.to_output())
+        .config_pin4(|p| p.to_output())
+        .config_pin6(|p| p.to_output())
+        .split(&pmm);
 
-        let p2 = Batch::new(P2 { port : periph.PORT_1_2})
-             .split(&pmm);
+        let p2 = Batch::new(P2 {
+            port: periph.PORT_1_2,
+        })
+        .split(&pmm);
 
         let (mut tx, mut _rx) = SerialConfig::new(
             periph.USCI_A1_UART_MODE,
@@ -139,17 +143,18 @@ fn main() -> ! {
         .use_smclk(&smclk)
         .split(p2.pin5.to_alternate2(), p2.pin6.to_alternate2());
         let p = unsafe { msp430fr5949::Peripherals::steal() };
-        let p1 = Batch::new(P1 { port : p.PORT_1_2})
-             .split(&pmm);
+        let p1 = Batch::new(P1 { port: p.PORT_1_2 }).split(&pmm);
 
         let mode = embedded_hal::spi::MODE_0;
         let spi = Spi::spi0(
-                        periph.USCI_B0_SPI_MODE,
-                        (p2.pin2.to_alternate2(),
-                        p1.pin7.to_alternate2(),
-                        p1.pin6.to_alternate2()),
-                        mode,
-                        // tx,
+            periph.USCI_B0_SPI_MODE,
+            (
+                p2.pin2.to_alternate2(),
+                p1.pin7.to_alternate2(),
+                p1.pin6.to_alternate2(),
+            ),
+            mode,
+            // tx,
         );
         let mut p1_2 = p1.pin2.pulldown();
         p1_2.select_rising_edge_trigger().enable_interrupts();
@@ -170,7 +175,7 @@ fn main() -> ! {
 
         free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
         free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
-        let mybool : bool = true;
+        let mybool: bool = true;
         free(|cs| *MYBOOL.borrow(*cs).borrow_mut() = Some(mybool));
 
         let ce = p2.pin4.to_output();
@@ -185,7 +190,9 @@ fn main() -> ! {
         tx.bwrite_all(b"We have frequency\r\n").unwrap();
         nrf24.set_auto_retransmit(0, 0).unwrap();
         nrf24.set_rf(&nrf24::DataRate::R250Kbps, 3).unwrap();
-        nrf24.set_pipes_rx_enable(&[true, false, false, false, false, false]).unwrap();
+        nrf24
+            .set_pipes_rx_enable(&[true, false, false, false, false, false])
+            .unwrap();
         nrf24.set_auto_ack(&[false; 6]).unwrap();
         nrf24.set_crc(nrf24::CrcMode::Disabled).unwrap();
         nrf24.set_tx_addr(&b"fnord"[..]).unwrap();
@@ -197,26 +204,25 @@ fn main() -> ! {
         tx.bwrite_all(b"HELLO\n\r").unwrap();
 
         wdt.set_aclk(&aclk)
-        // wdt.set_smclk(&smclk)
-        .enable_interrupts()
-        // .start(WdtClkPeriods::_32K);
-        .start(0);
+            // wdt.set_smclk(&smclk)
+            .enable_interrupts()
+            // .start(WdtClkPeriods::_32K);
+            .start(0);
         //unsafe { enable_int() };
 
-
-//
-// let mut nrf24 = NRF24L01::new(ce, csn, spi).unwrap();
-//
-// This will provide an instance of Standby. You can use .rx() or .tx() to transfer
-// into a RXMode and TXMode instances. They implement .standby() methods to get back
-// to Standby and then switch to the other mode.
-//
-//
-// use rx.can_read() to poll (returning a pipe number) then rx.read() to receive payload
-// use tx.send() to enqueue a packet
-// use tx.can_send() to prevent sending on full queue, and tx.wait_empty() to flush
-//
-//
+        //
+        // let mut nrf24 = NRF24L01::new(ce, csn, spi).unwrap();
+        //
+        // This will provide an instance of Standby. You can use .rx() or .tx() to transfer
+        // into a RXMode and TXMode instances. They implement .standby() methods to get back
+        // to Standby and then switch to the other mode.
+        //
+        //
+        // use rx.can_read() to poll (returning a pipe number) then rx.read() to receive payload
+        // use tx.send() to enqueue a packet
+        // use tx.can_send() to prevent sending on full queue, and tx.wait_empty() to flush
+        //
+        //
 
         // let mut nrf24rx = match nrf24.rx() {
         //     Ok(nrf) => nrf,
@@ -255,16 +261,16 @@ fn main() -> ! {
             delay(20_000);
             // nrf24rx = nrf24.rx().unwrap();
             // if mybool {
-                if let Ok(Some(_p_no)) = lnrf24rx.can_read() {
-                    if let Ok(pl) = lnrf24rx.read() {
-                        progress(&mut tx, count & 3);
-                        if pl.len() > 0 {
-                            tx.bwrite_all(b"read = ").unwrap();
-                            let _ = pl.as_ref().iter().map(|b| {print_u8(&mut tx, *b)});
-                            tx.bwrite_all(b"\r\n").unwrap();
-                        }
+            if let Ok(Some(_p_no)) = lnrf24rx.can_read() {
+                if let Ok(pl) = lnrf24rx.read() {
+                    progress(&mut tx, count & 3);
+                    if pl.len() > 0 {
+                        tx.bwrite_all(b"read = ").unwrap();
+                        let _ = pl.as_ref().iter().map(|b| print_u8(&mut tx, *b));
+                        tx.bwrite_all(b"\r\n").unwrap();
                     }
                 }
+            }
             // loop {
             //     delay(1000);
             //     if nrf24rx.has_carrier().unwrap() {
@@ -357,8 +363,10 @@ fn PORT1() {
                 .unwrap()
                 .get_interrupt_vector()
             {
-                GpioVector::Pin2Isr => {blue_led.set_low().ok();
-                blue_led.set_high().ok()},
+                GpioVector::Pin2Isr => {
+                    blue_led.set_low().ok();
+                    blue_led.set_high().ok()
+                }
                 _ => panic!(),
             }
         });

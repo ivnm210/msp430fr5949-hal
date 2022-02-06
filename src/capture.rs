@@ -100,12 +100,12 @@ impl CapturePeriph for pac::TB2 {
 }
 */
 impl CapturePeriph for pac::TIMER_0_B7 {
-    type Gpio1 = Pin<P2, Pin1, Alternate1<Input<Floating>>>;
-    type Gpio2 = Pin<P1, Pin4, Alternate1<Input<Floating>>>;
-    type Gpio3 = Pin<P1, Pin5, Alternate1<Input<Floating>>>;
-    type Gpio4 = Pin<P3, Pin4, Alternate1<Input<Floating>>>;
-    type Gpio5 = Pin<P3, Pin5, Alternate1<Input<Floating>>>;
-    type Gpio6 = Pin<P3, Pin0, Alternate1<Input<Floating>>>;
+    type Gpio1 = Pin<P1, Pin4, Alternate1<Input<Floating>>>;
+    type Gpio2 = Pin<P1, Pin5, Alternate1<Input<Floating>>>;
+    type Gpio3 = Pin<P3, Pin4, Alternate1<Input<Floating>>>;
+    type Gpio4 = Pin<P3, Pin5, Alternate1<Input<Floating>>>;
+    type Gpio5 = Pin<P3, Pin6, Alternate1<Input<Floating>>>;
+    type Gpio6 = Pin<P3, Pin7, Alternate1<Input<Floating>>>;
 }
 
 macro_rules! config_fn {

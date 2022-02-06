@@ -9,7 +9,7 @@ use msp430_rt::entry;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     capture::{
-        CapCmp, CapTrigger, Capture, CaptureParts3, CaptureVector, TBxIV, TimerConfig, CCR1,
+        CapCmp, CapTrigger, Capture, CaptureParts7, CaptureVector, TBxIV, TimerConfig, CCR1,
     },
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
@@ -26,9 +26,9 @@ use panic_msp430 as _;
 #[cfg(not(debug_assertions))]
 use panic_never as _;
 
-static CAPTURE: Mutex<UnsafeCell<Option<Capture<msp430fr5949::TB0, CCR1>>>> =
+static CAPTURE: Mutex<UnsafeCell<Option<Capture<msp430fr5949::TIMER_0_B7, CCR1>>>> =
     Mutex::new(UnsafeCell::new(None));
-static VECTOR: Mutex<UnsafeCell<Option<TBxIV<msp430fr5949::TB0>>>> =
+static VECTOR: Mutex<UnsafeCell<Option<TBxIV<msp430fr5949::TIMER_0_B7>>>> =
     Mutex::new(UnsafeCell::new(None));
 static RED_LED: Mutex<UnsafeCell<Option<Pin<P1, Pin0, Output>>>> =
     Mutex::new(UnsafeCell::new(None));
@@ -38,34 +38,47 @@ static RED_LED: Mutex<UnsafeCell<Option<Pin<P1, Pin0, Output>>>> =
 #[entry]
 fn main() -> ! {
     if let Some(periph) = msp430fr5949::Peripherals::take() {
-        let mut fram = Fram::new(periph.FRCTL);
-        Wdt::constrain(periph.WDT_A);
+        let mut fram = Fram::new(periph.FRAM);
+        let mut wdt = Wdt::constrain(periph.WATCHDOG_TIMER).to_interval();
 
-        let pmm = Pmm::new(periph.PMM);
-        let p1 = Batch::new(periph.P1)
-            .config_pin0(|p| p.to_output())
-            .split(&pmm);
-        let red_led = p1.pin0;
-
-        free(|cs| unsafe { *RED_LED.borrow(&cs).get() = Some(red_led) });
-
-        let (_smclk, aclk) = ClockConfig::new(periph.CS)
-            .mclk_dcoclk(DcoclkFreqSel::_1MHz, MclkDiv::_1)
-            .smclk_on(SmclkDiv::_1)
+        let (smclk, aclk) = ClockConfig::new(periph.CS)
+            .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
+            .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
             .aclk_vloclk()
             .freeze(&mut fram);
 
-        let captures = CaptureParts3::config(periph.TB0, TimerConfig::aclk(&aclk))
-            .config_cap1_input_A(p1.pin6.to_alternate2())
-            .config_cap1_trigger(CapTrigger::FallingEdge)
+        let pmm = Pmm::new(periph.PMM);
+
+        let p1 = Batch::new(P1 {
+            port: periph.PORT_1_2,
+        })
+        .config_pin0(|p| p.to_output())
+        .split(&pmm);
+
+        let red_led = p1.pin0;
+        
+        let p3 = Batch::new(P3 {
+            port: periph.PORT_3_4,
+        })
+        // .config_pin1(|p| p.to_output())
+        // .config_pin3(|p| p.to_output())
+        // .config_pin4(|p| p.to_output())
+        // .config_pin6(|p| p.to_output())
+        .split(&pmm);
+
+        free(|cs| unsafe { *RED_LED.borrow(*cs).get() = Some(red_led) });
+
+        let captures = CaptureParts7::config(periph.TIMER_0_B7, TimerConfig::aclk(&aclk))
+            .config_cap3_input_A(p3.pin4.to_alternate1())
+            .config_cap3_trigger(CapTrigger::FallingEdge)
             .commit();
         let mut capture = captures.cap1;
         let vectors = captures.tbxiv;
 
         setup_capture(&mut capture);
         free(|cs| {
-            unsafe { *CAPTURE.borrow(&cs).get() = Some(capture) }
-            unsafe { *VECTOR.borrow(&cs).get() = Some(vectors) }
+            unsafe { *CAPTURE.borrow(*cs).get() = Some(capture) }
+            unsafe { *VECTOR.borrow(*cs).get() = Some(vectors) }
         });
         unsafe { enable() };
     }
@@ -80,12 +93,12 @@ fn setup_capture<T: CapCmp<C>, C>(capture: &mut Capture<T, C>) {
 #[interrupt]
 fn TIMER0_B1() {
     free(|cs| {
-        if let Some(vector) = unsafe { &mut *VECTOR.borrow(&cs).get() }.as_mut() {
-            if let Some(capture) = unsafe { &mut *CAPTURE.borrow(&cs).get() }.as_mut() {
+        if let Some(vector) = unsafe { &mut *VECTOR.borrow(*cs).get() }.as_mut() {
+            if let Some(capture) = unsafe { &mut *CAPTURE.borrow(*cs).get() }.as_mut() {
                 match vector.interrupt_vector() {
                     CaptureVector::Capture1(cap) => {
                         if cap.interrupt_capture(capture).is_ok() {
-                            if let Some(led) = unsafe { &mut *RED_LED.borrow(&cs).get() }.as_mut() {
+                            if let Some(led) = unsafe { &mut *RED_LED.borrow(*cs).get() }.as_mut() {
                                 led.toggle().void_unwrap();
                             }
                         }
