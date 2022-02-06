@@ -7,7 +7,7 @@
 //! appropriate alternate-function GPIO pin. Only initialized pins can be used for PWM.
 
 use crate::gpio::{
-    Alternate1, Alternate2, ChangeSelectBits, Output, Pin, Pin0, Pin1, Pin2, Pin4, Pin5,
+    Alternate1, Alternate2, ChangeSelectBits, Output, Pin, Pin0, Pin1, Pin2, Pin3, Pin4, Pin5,
     Pin6, Pin7
 };
 // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
@@ -55,20 +55,20 @@ pub trait PwmPeriph<C>: CapCmp<C> + CapCmp<CCR0> {
 }
 
 impl PwmPeriph<CCR1> for pac::TIMER_0_A3 {
-    type Gpio = Pin<P1, Pin6, Alternate2<Output>>;
+    type Gpio = Pin<P1, Pin0, Alternate2<Output>>;
     const ALT: Alt = Alt::Alt2;
 }
 impl PwmPeriph<CCR2> for pac::TIMER_0_A3 {
-    type Gpio = Pin<P1, Pin0, Alternate2<Output>>;
+    type Gpio = Pin<P1, Pin1, Alternate2<Output>>;
     const ALT: Alt = Alt::Alt2;
 }
 
 impl PwmPeriph<CCR1> for pac::TIMER_1_A3 {
-    type Gpio = Pin<P1, Pin7, Alternate1<Output>>;
+    type Gpio = Pin<P1, Pin2, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
 impl PwmPeriph<CCR2> for pac::TIMER_1_A3 {
-    type Gpio = Pin<P1, Pin2, Alternate1<Output>>;
+    type Gpio = Pin<P1, Pin3, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
 
@@ -82,27 +82,27 @@ impl PwmPeriph<CCR2> for pac::TIMER_1_A3 {
 // }
 
 impl PwmPeriph<CCR1> for pac::TIMER_0_B7 {
-    type Gpio = Pin<P2, Pin1, Alternate1<Output>>;
-    const ALT: Alt = Alt::Alt1;
-}
-impl PwmPeriph<CCR2> for pac::TIMER_0_B7 {
     type Gpio = Pin<P1, Pin4, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
-impl PwmPeriph<CCR3> for pac::TIMER_0_B7 {
+impl PwmPeriph<CCR2> for pac::TIMER_0_B7 {
     type Gpio = Pin<P1, Pin5, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
-impl PwmPeriph<CCR4> for pac::TIMER_0_B7 {
+impl PwmPeriph<CCR3> for pac::TIMER_0_B7 {
     type Gpio = Pin<P3, Pin4, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
-impl PwmPeriph<CCR5> for pac::TIMER_0_B7 {
+impl PwmPeriph<CCR4> for pac::TIMER_0_B7 {
     type Gpio = Pin<P3, Pin5, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
-impl PwmPeriph<CCR6> for pac::TIMER_0_B7 {
+impl PwmPeriph<CCR5> for pac::TIMER_0_B7 {
     type Gpio = Pin<P3, Pin6, Alternate1<Output>>;
+    const ALT: Alt = Alt::Alt1;
+}
+impl PwmPeriph<CCR6> for pac::TIMER_0_B7 {
+    type Gpio = Pin<P3, Pin7, Alternate1<Output>>;
     const ALT: Alt = Alt::Alt1;
 }
 

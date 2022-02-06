@@ -9,7 +9,7 @@ use msp430_rt::entry;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     capture::{
-        CapCmp, CapTrigger, Capture, CaptureParts7, CaptureVector, TBxIV, TimerConfig, CCR1,
+        CapCmp, CapTrigger, Capture, CaptureParts7, CaptureVector, TBxIV, TimerConfig, CCR3,
     },
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
@@ -26,7 +26,7 @@ use panic_msp430 as _;
 #[cfg(not(debug_assertions))]
 use panic_never as _;
 
-static CAPTURE: Mutex<UnsafeCell<Option<Capture<msp430fr5949::TIMER_0_B7, CCR1>>>> =
+static CAPTURE: Mutex<UnsafeCell<Option<Capture<msp430fr5949::TIMER_0_B7, CCR3>>>> =
     Mutex::new(UnsafeCell::new(None));
 static VECTOR: Mutex<UnsafeCell<Option<TBxIV<msp430fr5949::TIMER_0_B7>>>> =
     Mutex::new(UnsafeCell::new(None));
@@ -70,9 +70,10 @@ fn main() -> ! {
 
         let captures = CaptureParts7::config(periph.TIMER_0_B7, TimerConfig::aclk(&aclk))
             .config_cap3_input_A(p3.pin4.to_alternate1())
-            .config_cap3_trigger(CapTrigger::FallingEdge)
+            // .config_cap3_trigger(CapTrigger::FallingEdge)
+            .config_cap3_trigger(CapTrigger::BothEdges)
             .commit();
-        let mut capture = captures.cap1;
+        let mut capture = captures.cap3;
         let vectors = captures.tbxiv;
 
         setup_capture(&mut capture);
@@ -96,7 +97,7 @@ fn TIMER0_B1() {
         if let Some(vector) = unsafe { &mut *VECTOR.borrow(*cs).get() }.as_mut() {
             if let Some(capture) = unsafe { &mut *CAPTURE.borrow(*cs).get() }.as_mut() {
                 match vector.interrupt_vector() {
-                    CaptureVector::Capture1(cap) => {
+                    CaptureVector::Capture3(cap) => {
                         if cap.interrupt_capture(capture).is_ok() {
                             if let Some(led) = unsafe { &mut *RED_LED.borrow(*cs).get() }.as_mut() {
                                 led.toggle().void_unwrap();

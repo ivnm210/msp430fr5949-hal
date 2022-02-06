@@ -704,6 +704,8 @@ impl<DIR> ToAlternate3 for Pin<P2, Pin5, DIR> {}
 // P3 alternate 1
 impl<DIR> ToAlternate1 for Pin<P3, Pin0, DIR> {}
 impl<DIR> ToAlternate1 for Pin<P3, Pin4, DIR> {}
+impl<DIR> ToAlternate1 for Pin<P3, Pin5, DIR> {}
+impl<DIR> ToAlternate1 for Pin<P3, Pin6, DIR> {}
 // P3 alternate 3
 impl<DIR> ToAlternate3 for Pin<P3, Pin1, DIR> {}
 impl<DIR> ToAlternate3 for Pin<P3, Pin2, DIR> {}
