@@ -164,7 +164,7 @@ macro_rules! reg_methods {
 
         #[inline(always)]
         fn $wr(&self, bits: u8) {
-            self.port.$reg.write(|w| unsafe {w.bits(bits) });
+            self.port.$reg.write(|w| unsafe { w.bits(bits) });
         }
 
         #[inline(always)]
@@ -176,7 +176,7 @@ macro_rules! reg_methods {
         fn $clear(&self, bits: u8) {
             unsafe { self.port.$reg.modify(|r, w| w.bits(r.bits() & bits)) }
         }
-    }
+    };
 }
 
 macro_rules! reg_methods16 {
@@ -188,7 +188,7 @@ macro_rules! reg_methods16 {
 
         #[inline(always)]
         fn $wr(&self, bits: u16) {
-            self.$reg.write(|w| unsafe {w.bits(bits) });
+            self.$reg.write(|w| unsafe { w.bits(bits) });
         }
 
         #[inline(always)]
@@ -200,7 +200,7 @@ macro_rules! reg_methods16 {
         fn $clear(&self, bits: u16) {
             unsafe { self.$reg.modify(|r, w| w.bits(r.bits() & bits)) }
         }
-    }
+    };
 }
 
 macro_rules! gpio_impl {
@@ -244,7 +244,7 @@ macro_rules! gpio_impl {
                     unsafe {
                         self.port.$pxout.modify(
                             |r, w|
-                            w.bits(!(r.bits() & bits))
+                            w.bits(r.bits() ^ bits)
                             ,
                         );
                     }
@@ -306,7 +306,7 @@ macro_rules! gpio_impl16 {
                     unsafe {
                         self.$pxout.modify(
                             |r, w|
-                            w.bits(!(r.bits() & bits))
+                            w.bits(r.bits() ^ bits)
                             ,
                         );
                     }

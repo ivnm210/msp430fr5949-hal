@@ -3,10 +3,11 @@
 
 use embedded_hal::digital::v2::*;
 use embedded_hal::prelude::*;
-use msp430_rt::entry;
 use msp430::{asm, interrupt};
+use msp430_rt::entry;
 // use msp430fr5949_hal::{gpio::Batch, pmm::Pmm, watchdog::Wdt};
 // use msp430fr5949_hal::gpio::{P1, P2, P3};
+use msp430fr5949::*;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
     fram::Fram,
@@ -15,16 +16,15 @@ use msp430fr5949_hal::{
     serial::*,
     watchdog::Wdt,
 };
-use msp430fr5949::*;
-use panic_msp430 as _;
 use nb::block;
+use panic_msp430 as _;
 
 fn delay(n: u32) {
     let mut i = 0;
     loop {
         asm::nop();
         i += 1;
-            if i == n {
+        if i == n {
             break;
         }
     }
@@ -39,20 +39,25 @@ fn main() -> ! {
     let _wdt = Wdt::constrain(periph.WATCHDOG_TIMER);
 
     let (smclk, _aclk) = ClockConfig::new(periph.CS)
-            .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
-            .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
-            .aclk_vloclk()
-            .freeze(&mut fram);
+        .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
+        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
+        .aclk_vloclk()
+        .freeze(&mut fram);
 
     let pmm = Pmm::new(periph.PMM);
-    let p3 = Batch::new(P3 { port : periph.PORT_3_4})
-        .config_pin1(|p| p.to_output())
-        .config_pin3(|p| p.to_output())
-        .config_pin4(|p| p.to_output())
-        .config_pin6(|p| p.to_output())
-        .split(&pmm);
+    let p3 = Batch::new(P3 {
+        port: periph.PORT_3_4,
+    })
+    .config_pin1(|p| p.to_output())
+    .config_pin3(|p| p.to_output())
+    .config_pin4(|p| p.to_output())
+    .config_pin6(|p| p.to_output())
+    .split(&pmm);
 
-    let p2 = Batch::new(P2 {port : periph.PORT_1_2 }).split(&pmm);
+    let p2 = Batch::new(P2 {
+        port: periph.PORT_1_2,
+    })
+    .split(&pmm);
 
     let (mut tx, mut rx) = SerialConfig::new(
         periph.USCI_A1_UART_MODE,
@@ -109,6 +114,5 @@ fn main() -> ! {
         //         // p6_6.set_high().ok();
         //     }
         // }
-
     }
 }

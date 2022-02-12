@@ -24,14 +24,16 @@ fn main() -> ! {
     let wdt = Wdt::constrain(periph.WATCHDOG_TIMER);
 
     let pmm = Pmm::new(periph.PMM);
-    let p3 = Batch::new(P3 { port : periph.PORT_3_4})
-        .config_pin1(|p| p.to_output())
-        .split(&pmm);
+    let p3 = Batch::new(P3 {
+        port: periph.PORT_3_4,
+    })
+    .config_pin1(|p| p.to_output())
+    .split(&pmm);
     let mut p3_1 = p3.pin1;
 
     let (smclk, _aclk) = ClockConfig::new(periph.CS)
         .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
-        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel:_16MHz)
+        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel: _16MHz)
         .aclk_vloclk()
         .freeze(&mut fram);
 

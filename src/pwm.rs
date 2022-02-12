@@ -8,7 +8,7 @@
 
 use crate::gpio::{
     Alternate1, Alternate2, ChangeSelectBits, Output, Pin, Pin0, Pin1, Pin2, Pin3, Pin4, Pin5,
-    Pin6, Pin7
+    Pin6, Pin7,
 };
 // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
 use crate::gpio::{P1, P2, P3};
@@ -73,12 +73,12 @@ impl PwmPeriph<CCR2> for pac::TIMER_1_A3 {
 }
 
 // impl PwmPeriph<CCR1> for pac::TB2 {
-    // type Gpio = Pin<PORTJ, Pin0, Alternate1<Output>>;
-    // const ALT: Alt = Alt::Alt1;
+// type Gpio = Pin<PORTJ, Pin0, Alternate1<Output>>;
+// const ALT: Alt = Alt::Alt1;
 // }
 // impl PwmPeriph<CCR2> for pac::TB2 {
-    // type Gpio = Pin<PORTJ, Pin1, Alternate1<Output>>;
-    // const ALT: Alt = Alt::Alt1;
+// type Gpio = Pin<PORTJ, Pin1, Alternate1<Output>>;
+// const ALT: Alt = Alt::Alt1;
 // }
 
 impl PwmPeriph<CCR1> for pac::TIMER_0_B7 {

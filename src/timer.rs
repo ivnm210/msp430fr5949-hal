@@ -16,7 +16,6 @@ use core::marker::PhantomData;
 use embedded_hal::timer::{Cancel, CountDown, Periodic};
 use msp430fr5949 as pac;
 
-
 pub use crate::hw_traits::timerb::{
     TimerDiv, TimerExDiv, CCR0, CCR1, CCR2, CCR3, CCR4, CCR5, CCR6,
 };
@@ -353,5 +352,3 @@ impl<T: CapCmp<C>, C> SubTimer<T, C> {
         timer.ccie_clr();
     }
 }
-
-

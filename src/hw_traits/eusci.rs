@@ -1,6 +1,6 @@
 use super::Steal;
-use msp430fr5949 as pac;
 use core::convert::TryInto;
+use msp430fr5949 as pac;
 
 pub enum Ucssel {
     Uclk,
@@ -61,7 +61,7 @@ pub trait UcaxStatw {
     fn ucbusy(&self) -> bool;
 }
 
-fn get_bit(val : u8, bit : u8) -> bool {
+fn get_bit(val: u8, bit: u8) -> bool {
     let bit = (val >> bit) & 1;
     if bit > 0 {
         true
@@ -97,8 +97,10 @@ macro_rules! eusci_a_impl {
 
             #[inline(always)]
             fn brw_settings(&self, ucbr: u16) {
-                self.$ucaxbrw0.write(|w| unsafe { w.bits(((ucbr & 0xff) & 0xff).try_into().unwrap()) });
-                self.$ucaxbrw1.write(|w| unsafe { w.bits(((ucbr >> 8) & 0xff).try_into().unwrap()) });
+                self.$ucaxbrw0
+                    .write(|w| unsafe { w.bits(((ucbr & 0xff) & 0xff).try_into().unwrap()) });
+                self.$ucaxbrw1
+                    .write(|w| unsafe { w.bits(((ucbr >> 8) & 0xff).try_into().unwrap()) });
             }
 
             #[inline(always)]
@@ -173,20 +175,21 @@ macro_rules! eusci_a_impl {
                 });
                 self.$ucaxctl0.write(|w| {
                     unsafe {
-                      // w.ucrxeie()
-                      //  .bit(reg.ucrxeie)
-                    w.ucsselx()
-                       .bits(get_ucssel(reg.ucssel))
-                       .ucswrst().clear_bit()
+                        // w.ucrxeie()
+                        //  .bit(reg.ucrxeie)
+                        w.ucsselx()
+                            .bits(get_ucssel(reg.ucssel))
+                            .ucswrst()
+                            .clear_bit()
                     }
                 });
-                        //.ucrxeie()
-                        //.bit(reg.ucrxeie)
+                //.ucrxeie()
+                //.bit(reg.ucrxeie)
             }
 
             #[inline(always)]
             fn mctlw_settings(&self, ucos16: bool, ucbrs: u8, ucbrf: u8) {
-                self.$ucaxmctlw.write(|w|
+                self.$ucaxmctlw.write(|w| {
                     w.ucos16()
                         .bit(ucos16)
                         .ucbrs0()
@@ -207,7 +210,7 @@ macro_rules! eusci_a_impl {
                         .bit(get_bit(ucbrs, 7))
                         .ucbrf()
                         .bits(ucbrf)
-                );
+                });
             }
 
             #[inline(always)]

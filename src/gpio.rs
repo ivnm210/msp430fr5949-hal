@@ -44,25 +44,25 @@ mod sealed {
 /// port 1
 pub struct P1 {
     /// port 1
-    pub port : pac::PORT_1_2
+    pub port: pac::PORT_1_2,
 }
 
 /// port 2
 pub struct P2 {
     /// port 2
-    pub port : pac::PORT_1_2
+    pub port: pac::PORT_1_2,
 }
 
 /// port 3
 pub struct P3 {
     /// port 3
-    pub port : pac::PORT_3_4
+    pub port: pac::PORT_3_4,
 }
 
 /// port 4
 pub struct P4 {
     /// port 4
-    pub port : pac::PORT_3_4
+    pub port: pac::PORT_3_4,
 }
 
 /// Trait that encompasses all `Pinx` types for specifying a pin number.
@@ -676,6 +676,7 @@ impl<PIN: PinNum, DIR> ToAlternate1 for Pin<P1, PIN, DIR> {}
 impl<DIR> ToAlternate2 for Pin<P1, Pin0, DIR> {}
 impl<DIR> ToAlternate2 for Pin<P1, Pin1, DIR> {}
 impl<PULL> ToAlternate2 for Pin<P1, Pin2, Input<PULL>> {}
+impl<DIR> ToAlternate2 for Pin<P1, Pin5, DIR> {}
 impl<DIR> ToAlternate2 for Pin<P1, Pin6, DIR> {}
 impl<DIR> ToAlternate2 for Pin<P1, Pin7, DIR> {}
 // P1 alternate 3

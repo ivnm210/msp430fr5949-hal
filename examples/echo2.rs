@@ -35,8 +35,16 @@ fn main() -> ! {
             .freeze(&mut fram);
 
         let pmm = Pmm::new(periph.PMM);
-        let mut led = Batch::new(P3 { port : periph.PORT_3_4 }).split(&pmm).pin5.to_output();
-        let p2 = Batch::new(P2 {port : periph.PORT_1_2 }).split(&pmm);
+        let mut led = Batch::new(P3 {
+            port: periph.PORT_3_4,
+        })
+        .split(&pmm)
+        .pin5
+        .to_output();
+        let p2 = Batch::new(P2 {
+            port: periph.PORT_1_2,
+        })
+        .split(&pmm);
         led.set_low().ok();
 
         let (mut tx, mut rx) = SerialConfig::new(

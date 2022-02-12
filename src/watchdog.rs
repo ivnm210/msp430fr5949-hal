@@ -128,14 +128,15 @@ impl<MODE: WatchdogSelect> Wdt<MODE> {
     // Reset countdown, unpause timer, and set timeout in a single write
     #[inline]
     fn unpause_and_set_time(&mut self, periods: WdtClkPeriods) {
-        unsafe { self.periph.wdtctl.modify(|r, w| {
-            Self::prewrite(w, r.bits())
-                .wdtcntcl()
-                .set_bit()
-                .wdthold()
-                .clear_bit() //.unhold()
-                .wdtis()
-                .bits(periods) //.variant(periods)
+        unsafe {
+            self.periph.wdtctl.modify(|r, w| {
+                Self::prewrite(w, r.bits())
+                    .wdtcntcl()
+                    .set_bit()
+                    .wdthold()
+                    .clear_bit() //.unhold()
+                    .wdtis()
+                    .bits(periods) //.variant(periods)
             });
         }
     }
@@ -192,7 +193,8 @@ impl CountDown for Wdt<IntervalMode> {
     #[inline]
     fn wait(&mut self) -> nb::Result<(), void::Void> {
         let sfr = unsafe { &*pac::SFR::ptr() };
-        if sfr.sfrifg1.read().wdtifg().bit() { // }.is_wdtifg_1() {
+        if sfr.sfrifg1.read().wdtifg().bit() {
+            // }.is_wdtifg_1() {
             //unsafe { sfr.sfrifg1.clear_bits(|w| w.wdtifg().clear_bit()) };
             sfr.sfrifg1.modify(|_, w| w.wdtifg().clear_bit());
             Ok(())
@@ -243,7 +245,7 @@ impl Wdt<IntervalMode> {
         // Wipe out old interrupt flag, which may cause a watchdog reset
         let sfr = unsafe { &*pac::SFR::ptr() };
         //unsafe { sfr.sfrifg1.clear_bits(|w| w.wdtifg().clear_bit()) };
-        sfr.sfrifg1.modify(|_,w| w.wdtifg().clear_bit());
+        sfr.sfrifg1.modify(|_, w| w.wdtifg().clear_bit());
         wdt
     }
 
@@ -254,7 +256,7 @@ impl Wdt<IntervalMode> {
     pub fn enable_interrupts(&mut self) -> &mut Self {
         let sfr = unsafe { &*pac::SFR::ptr() };
         //unsafe { sfr.sfrie1.set_bits(|w| w.wdtie().set_bit()) };
-        sfr.sfrie1.modify(|_,w| w.wdtie().set_bit());
+        sfr.sfrie1.modify(|_, w| w.wdtie().set_bit());
         self
     }
 
@@ -263,7 +265,7 @@ impl Wdt<IntervalMode> {
     pub fn disable_interrupts(&mut self) -> &mut Self {
         let sfr = unsafe { &*pac::SFR::ptr() };
         //unsafe { sfr.sfrie1.clear_bits(|w| w.wdtie().clear_bit()) };
-        sfr.sfrie1.modify(|_,w| w.wdtie().clear_bit());
+        sfr.sfrie1.modify(|_, w| w.wdtie().clear_bit());
         self
     }
 }

@@ -2,20 +2,20 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use msp430::asm;
 use core::cell::RefCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
+use msp430::asm;
+use msp430::interrupt::{enable as enable_int, free, Mutex};
 use msp430_rt::entry;
+use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
-    gpio::{Batch, P2, P3, Output, Pin, Pin3},
+    gpio::{Batch, Output, Pin, Pin3, P2, P3},
     pmm::Pmm,
     watchdog::Wdt,
 };
-use msp430::interrupt::{enable as enable_int, free, Mutex};
-use msp430fr5949::interrupt;
 
 // #[cfg(debug_assertions)]
 use panic_msp430 as _;
@@ -27,7 +27,7 @@ fn delay(n: u32) {
     loop {
         asm::nop();
         i += 1;
-            if i == n {
+        if i == n {
             break;
         }
     }
@@ -169,45 +169,55 @@ impl Uart0 {
 struct Uart1;
 
 impl Uart1 {
-    fn init() -> Self
-    {
-        let p = unsafe { msp430fr5949::Peripherals::steal()};
+    fn init() -> Self {
+        let p = unsafe { msp430fr5949::Peripherals::steal() };
         let uart = p.USCI_A1_UART_MODE;
-        uart.uca1ctl0.write(|w| unsafe { w.ucswrst().set_bit().ucsselx().bits(2) } );
-        uart.uca1br0.write(|w| unsafe { w.bits(8) } );
-        uart.uca1br1.write(|w| unsafe { w.bits(0) } );
-        uart.uca1mctlw.write(|w| w.ucos16().bit(true).
-                                        ucbrs7().bit(true).
-                                        ucbrs6().bit(true).
-                                        ucbrs5().bit(true).
-                                        ucbrs4().bit(true).
-                                        ucbrs3().bit(false).
-                                        ucbrs2().bit(true).
-                                        ucbrs1().bit(true).
-                                        ucbrs0().bit(true).
-                                        ucbrf().bits(0xA));
+        uart.uca1ctl0
+            .write(|w| unsafe { w.ucswrst().set_bit().ucsselx().bits(2) });
+        uart.uca1br0.write(|w| unsafe { w.bits(8) });
+        uart.uca1br1.write(|w| unsafe { w.bits(0) });
+        uart.uca1mctlw.write(|w| {
+            w.ucos16()
+                .bit(true)
+                .ucbrs7()
+                .bit(true)
+                .ucbrs6()
+                .bit(true)
+                .ucbrs5()
+                .bit(true)
+                .ucbrs4()
+                .bit(true)
+                .ucbrs3()
+                .bit(false)
+                .ucbrs2()
+                .bit(true)
+                .ucbrs1()
+                .bit(true)
+                .ucbrs0()
+                .bit(true)
+                .ucbrf()
+                .bits(0xA)
+        });
 
         // uart.uca1ctl0.modify(|_,w| unsafe { w.ucsselx().bits(2) } );
-        uart.uca1ctl0.modify(|_,w| w.ucswrst().clear_bit() );
-        uart.uca1ie.modify(|_,w| w.ucrxie().set_bit());
-        return Uart1{};
+        uart.uca1ctl0.modify(|_, w| w.ucswrst().clear_bit());
+        uart.uca1ie.modify(|_, w| w.ucrxie().set_bit());
+        return Uart1 {};
     }
 
     #[inline(always)]
-    fn putc(&self, ch : char)
-    {
+    fn putc(&self, ch: char) {
         let p = unsafe { msp430fr5949::Peripherals::steal() };
         let u = p.USCI_A1_UART_MODE;
         // if u.uca1ie.read().uctxie() == false {
-            while u.uca1ifg.read().uctxifg().bit() == false {
-                asm::nop();
-            }
+        while u.uca1ifg.read().uctxifg().bit() == false {
+            asm::nop();
+        }
         // }
-        u.uca1txbuf.write(|w| unsafe{ w.bits(ch as u16) } );
+        u.uca1txbuf.write(|w| unsafe { w.bits(ch as u16) });
     }
 
-    fn puts(&self, buf : &str)
-    {
+    fn puts(&self, buf: &str) {
         // let len = buf.len();
         for ch in buf.bytes() {
             self.putc(ch as char);
@@ -233,12 +243,14 @@ fn main() -> ! {
             .freeze(&mut fram);
 
         let pmm = Pmm::new(periph.PMM);
-        let p3 = Batch::new(P3 { port : periph.PORT_3_4})
-            .config_pin1(|p| p.to_output())
-            .config_pin3(|p| p.to_output())
-            .config_pin4(|p| p.to_output())
-            .config_pin6(|p| p.to_output())
-            .split(&pmm);
+        let p3 = Batch::new(P3 {
+            port: periph.PORT_3_4,
+        })
+        .config_pin1(|p| p.to_output())
+        .config_pin3(|p| p.to_output())
+        .config_pin4(|p| p.to_output())
+        .config_pin6(|p| p.to_output())
+        .split(&pmm);
 
         // let p2 = Batch::new(P2 { port : periph.PORT_1_2})
         //     .config_pin5(|p| p.to_output())
@@ -248,8 +260,10 @@ fn main() -> ! {
         // let p2 = p.PORT_1_2;
         // p2.p2sel0.modify(|_, w| w.p2sel0_5().clear_bit().p2sel0_6().clear_bit());
         // p2.p2sel1.modify(|_, w| w.p2sel1_5().set_bit().p2sel1_6().set_bit());
-        let p2 = Batch::new(P2 { port : periph.PORT_1_2})
-             .split(&pmm);
+        let p2 = Batch::new(P2 {
+            port: periph.PORT_1_2,
+        })
+        .split(&pmm);
         let mut _p2_5 = p2.pin5.to_alternate2();
         let mut _p2_6 = p2.pin6.to_alternate2();
 
@@ -305,16 +319,16 @@ fn main() -> ! {
 
         // tx.bwrite_all(b"HELLO\n").ok();
         uart.puts("Hello there\r\n");
-                //uart.putc('1');
-                //uart.putc('2');
-                //uart.putc('3');
-                //uart.putc('4');
+        //uart.putc('1');
+        //uart.putc('2');
+        //uart.putc('3');
+        //uart.putc('4');
 
         wdt.set_aclk(&aclk)
-        // wdt.set_smclk(&smclk)
-        .enable_interrupts()
-        // .start(WdtClkPeriods::_32K);
-        .start(7);
+            // wdt.set_smclk(&smclk)
+            .enable_interrupts()
+            // .start(WdtClkPeriods::_32K);
+            .start(7);
         unsafe { enable_int() };
 
         loop {
@@ -371,10 +385,10 @@ fn USCI_A1() {
         if uart1.uca1ifg.read().ucrxifg() == true {
             let _ch = uart1.uca1rxbuf.read();
         }
-         BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-             blue_led.set_low().ok();
-             blue_led.set_high().ok();
-         })
+        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+            blue_led.set_low().ok();
+            blue_led.set_high().ok();
+        })
     });
 }
 
@@ -382,8 +396,8 @@ fn USCI_A1() {
 fn WDT() {
     free(|_cs| {
         //BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-            //blue_led.set_low().ok();
-            //blue_led.set_high().ok();
+        //blue_led.set_low().ok();
+        //blue_led.set_high().ok();
         //})
     });
 }

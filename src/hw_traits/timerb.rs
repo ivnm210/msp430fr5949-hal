@@ -169,25 +169,19 @@ macro_rules! ccrn_impl {
             #[inline(always)]
             fn ccifg_clr(&self) {
                 // unsafe { self.$tbxcctln.clear_bits(|w| w.ccifg().clear_bit()) };
-                self.$tbxcctln.write(|w|{
-                    w.ccifg().clear_bit()
-                });
+                self.$tbxcctln.write(|w| w.ccifg().clear_bit());
             }
 
             #[inline(always)]
             fn ccie_set(&self) {
                 // unsafe { self.$tbxcctln.set_bits(|w| w.ccie().set_bit()) };
-                self.$tbxcctln.write(|w|{
-                    w.ccie().set_bit()
-                });
+                self.$tbxcctln.write(|w| w.ccie().set_bit());
             }
 
             #[inline(always)]
             fn ccie_clr(&self) {
                 // unsafe { self.$tbxcctln.clear_bits(|w| w.ccie().clear_bit()) };
-                self.$tbxcctln.write(|w|{
-                    w.ccie().clear_bit()
-                });
+                self.$tbxcctln.write(|w| w.ccie().clear_bit());
             }
 
             #[inline(always)]
@@ -198,11 +192,10 @@ macro_rules! ccrn_impl {
 
             #[inline(always)]
             fn cov_ccifg_clr(&self) {
-                    // self.$tbxcctln
-                        // .clear_bits(|w| w.ccifg().clear_bit().cov().clear_bit())
-                    self.$tbxcctln.write(|w|{
-                        w.ccifg().clear_bit().cov().clear_bit()
-                    });
+                // self.$tbxcctln
+                // .clear_bits(|w| w.ccifg().clear_bit().cov().clear_bit())
+                self.$tbxcctln
+                    .write(|w| w.ccifg().clear_bit().cov().clear_bit());
             }
         }
     };

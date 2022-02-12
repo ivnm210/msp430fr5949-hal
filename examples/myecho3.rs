@@ -89,15 +89,15 @@ impl<
     }
 
     // pub fn init(&mut self) {
-        // let mut data = [1u8];
-        // data[0] = 0;
-        // self.send_command(0x01u8, &data);
-        // data[0] = 1;
-        // self.send_command(0x02u8, &data);
-        // data[0] = 1;
-        // self.send_command(0x03u8, &data);
-        // data[0] = 0x90;
-        // self.send_command(0x05u8, &data);
+    // let mut data = [1u8];
+    // data[0] = 0;
+    // self.send_command(0x01u8, &data);
+    // data[0] = 1;
+    // self.send_command(0x02u8, &data);
+    // data[0] = 1;
+    // self.send_command(0x03u8, &data);
+    // data[0] = 0x90;
+    // self.send_command(0x05u8, &data);
     // }
 }
 
@@ -231,8 +231,8 @@ fn main() -> ! {
 fn WDT() {
     free(|cs| {
         BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-        blue_led.set_low().ok();
-        blue_led.set_high().ok();
+            blue_led.set_low().ok();
+            blue_led.set_high().ok();
         })
     });
 }

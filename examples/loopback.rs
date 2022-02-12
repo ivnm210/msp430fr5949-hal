@@ -5,10 +5,10 @@ use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use embedded_hal::serial::Read;
 use msp430_rt::entry;
-use msp430fr5969_hal::{
+use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, Smclk, SmclkDiv},
     fram::Fram,
-    gpio::{Batch, P1, P2, P4},
+    gpio::{Batch, P1, P2, P3},
     pmm::Pmm,
     serial::*,
     watchdog::Wdt,
@@ -49,25 +49,33 @@ fn read_unwrap<R: Read<u8>>(rx: &mut R, err: char) -> u8 {
 // Only UART1 settings matter for the host
 #[entry]
 fn main() -> ! {
-    let periph = msp430fr5969::Peripherals::take().unwrap();
+    let periph = msp430fr5949::Peripherals::take().unwrap();
 
     let mut fram = Fram::new(periph.FRAM);
     let _wdt = Wdt::constrain(periph.WATCHDOG_TIMER);
 
-    let (smclk, _aclk) = ClockConfig::new(periph.CS)
-        .mclk_dcoclk(DcoclkFreqSel::_4MHz, MclkDiv::DIVM_1)
-        .smclk_on(SmclkDiv::DIVS_2)
-        .aclk_refoclk()
+    let (smclk, aclk) = ClockConfig::new(periph.CS)
+        .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
+        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
+        .aclk_vloclk()
         .freeze(&mut fram);
 
     let pmm = Pmm::new(periph.PMM);
-    let p1 = Batch::new(P1 {port : periph.PORT_1_2}).split(&pmm);
-    let periph = msp430fr5969::Peripherals::take().unwrap();
-    let p2 = Batch::new(P2 {port : periph.PORT_1_2}).split(&pmm);
-    let periph = msp430fr5969::Peripherals::take().unwrap();
-    let p4 = Batch::new(P4 {port : periph.PORT_3_4}).split(&pmm);
+    let p1 = Batch::new(P1 {
+        port: periph.PORT_1_2,
+    })
+    .split(&pmm);
+    let periph = msp430fr5949::Peripherals::take().unwrap();
+    let p2 = Batch::new(P2 {
+        port: periph.PORT_1_2,
+    })
+    .split(&pmm);
+    let p3 = Batch::new(P3 {
+        port: periph.PORT_3_4,
+    })
+    .split(&pmm);
     let mut led = p1.pin0.to_output();
-    let mut led2 = p4.pin6.to_output();
+    let mut led2 = p3.pin6.to_output();
     led.set_low().ok();
 
     let (mut tx0, mut rx0) = setup_uart(
@@ -76,7 +84,7 @@ fn main() -> ! {
         p2.pin1.to_alternate2().into(),
         Parity::EvenParity,
         Loopback::Loopback,
-        20000,
+        19200,
         &smclk,
     );
 

@@ -28,11 +28,16 @@ fn main() -> ! {
     Wdt::constrain(periph.WATCHDOG_TIMER);
 
     let pmm = Pmm::new(periph.PMM);
-    let p2 = Batch::new(P2 { port : periph.PORT_1_2}).split(&pmm);
+    let p2 = Batch::new(P2 {
+        port: periph.PORT_1_2,
+    })
+    .split(&pmm);
     let periph = msp430fr5969::Peripherals::take().unwrap();
-    let mut p1 = Batch::new(P1 {port : periph.PORT_1_2})
-        .config_pin0(|p| p.to_output())
-        .split(&pmm);
+    let mut p1 = Batch::new(P1 {
+        port: periph.PORT_1_2,
+    })
+    .config_pin0(|p| p.to_output())
+    .split(&pmm);
 
     let (smclk, aclk) = ClockConfig::new(periph.CS)
         .mclk_dcoclk(DcoclkFreqSel::_1MHz, MclkDiv::DIVM_1)

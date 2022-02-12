@@ -56,22 +56,18 @@ fn main() -> ! {
         .split(&pmm);
 
         let red_led = p1.pin0;
-        
+
         let p3 = Batch::new(P3 {
             port: periph.PORT_3_4,
         })
-        // .config_pin1(|p| p.to_output())
-        // .config_pin3(|p| p.to_output())
-        // .config_pin4(|p| p.to_output())
-        // .config_pin6(|p| p.to_output())
         .split(&pmm);
 
         free(|cs| unsafe { *RED_LED.borrow(*cs).get() = Some(red_led) });
 
         let captures = CaptureParts7::config(periph.TIMER_0_B7, TimerConfig::aclk(&aclk))
             .config_cap3_input_A(p3.pin4.to_alternate1())
-            // .config_cap3_trigger(CapTrigger::FallingEdge)
-            .config_cap3_trigger(CapTrigger::BothEdges)
+            .config_cap3_trigger(CapTrigger::FallingEdge)
+            // .config_cap3_trigger(CapTrigger::BothEdges)
             .commit();
         let mut capture = captures.cap3;
         let vectors = captures.tbxiv;

@@ -8,7 +8,7 @@
 
 use crate::clock::{Aclk, Clock, Smclk};
 use crate::gpio::{Alternate2, Pin, Pin0, Pin1, Pin4, Pin5, Pin6}; //, P1, P4};
-// use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
+                                                                  // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
 use crate::gpio::{P1, P2};
 use crate::hw_traits::eusci::{EUsciUart, UcaxStatw, Ucssel, UcxCtl0};
 use core::marker::PhantomData;

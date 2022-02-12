@@ -25,9 +25,11 @@ fn main() -> ! {
     Wdt::constrain(periph.WATCHDOG_TIMER);
 
     let pmm = Pmm::new(periph.PMM);
-    let p3 = Batch::new(P3 { port : periph.PORT_3_4})
-        .config_pin1(|p| p.to_output())
-        .split(&pmm);
+    let p3 = Batch::new(P3 {
+        port: periph.PORT_3_4,
+    })
+    .config_pin1(|p| p.to_output())
+    .split(&pmm);
     let mut p3_1 = p3.pin1;
 
     let (_smclk, aclk) = ClockConfig::new(periph.CS)
