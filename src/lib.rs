@@ -31,6 +31,7 @@
 
 pub mod batch_gpio;
 pub mod capture;
+pub mod delay;
 pub mod clock;
 pub mod fram;
 pub mod gpio;

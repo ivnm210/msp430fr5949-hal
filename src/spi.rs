@@ -2,7 +2,7 @@
 
 //use crate::clock::{Aclk, Clock, Smclk};
 use crate::gpio::{Alternate2, Pin, Pin0, Pin1, Pin2, Pin5, Pin6, Pin7}; //, P1, P4};
-                                                      // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
+                                                                        // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
 use crate::gpio::{P1, P2};
 //use embedded_hal::serial::{Read, Write};
 use embedded_hal::spi::{FullDuplex, Mode};

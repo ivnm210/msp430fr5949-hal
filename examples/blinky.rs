@@ -6,8 +6,8 @@ use msp430::{asm, interrupt};
 use msp430_rt::entry;
 // use msp430fr5949_hal::{gpio::Batch, pmm::Pmm, watchdog::Wdt};
 // use msp430fr5949_hal::gpio::{P1, P2, P3};
-use msp430fr5949::*;
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
+use msp430fr5949::*;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
     fram::Fram,
@@ -18,19 +18,16 @@ use msp430fr5949_hal::{
 };
 use panic_msp430 as _;
 
-pub struct Delay {
-}
+pub struct Delay {}
 
 impl Delay {
     /// Configures the system timer (SysTick) as a delay provider
     pub fn new() -> Self {
-        Delay {
-        }
+        Delay {}
     }
 
     /// Releases the system timer (SysTick) resource
-    pub fn free(self) {
-    }
+    pub fn free(self) {}
 }
 
 impl DelayMs<u32> for Delay {
@@ -64,9 +61,8 @@ impl DelayUs<u32> for Delay {
             }
         }
         // for j in 0..i/2 {
-            // asm::nop();
+        // asm::nop();
         // }
-
     }
 }
 
@@ -81,7 +77,6 @@ impl DelayUs<u8> for Delay {
         self.delay_us(us as u32)
     }
 }
-
 
 fn uart1_init() {
     // let periph = msp430fr5949::Peripherals::take().unwrap();
@@ -102,10 +97,10 @@ fn main() -> ! {
     let _wdt = Wdt::constrain(periph.WATCHDOG_TIMER);
 
     // let (smclk, _aclk) = ClockConfig::new(periph.CS)
-        // .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_1)
-        // .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
-        // .aclk_vloclk()
-        // .freeze(&mut fram);
+    // .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_1)
+    // .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
+    // .aclk_vloclk()
+    // .freeze(&mut fram);
     let (smclk, aclk) = ClockConfig::new(periph.CS)
         .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
         .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
@@ -161,22 +156,22 @@ fn main() -> ! {
         p3_6.toggle().ok();
         p3_3.toggle().ok();
         p3_6.toggle().ok();
-        delayd.delay_us(100u32);// delay(5_000);
+        delayd.delay_us(100u32); // delay(5_000);
 
         // if count & 4 == 4 {
-            // p3_3.set_high().unwrap();
+        // p3_3.set_high().unwrap();
         // } else {
-            // p3_3.set_low().unwrap();
+        // p3_3.set_low().unwrap();
         // }
         // if count & 2 == 2 {
-            // p3_1.set_high().unwrap();
+        // p3_1.set_high().unwrap();
         // } else {
-            // p3_1.set_low().unwrap();
+        // p3_1.set_low().unwrap();
         // }
         // if count & 8 == 8 {
-            // p3_6.set_high().unwrap();
+        // p3_6.set_high().unwrap();
         // } else {
-            // p3_6.set_low().unwrap();
+        // p3_6.set_low().unwrap();
         // }
         // count = count + 1;
 

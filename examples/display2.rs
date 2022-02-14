@@ -5,6 +5,7 @@
 use core::cell::RefCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
+use msp430::asm;
 use msp430::interrupt::{enable as enable_int, free, Mutex};
 use msp430_rt::entry;
 use msp430fr5949::interrupt;
@@ -15,7 +16,6 @@ use msp430fr5949_hal::{
     pmm::Pmm,
     serial::*,
     spi::*,
-    delay::Delay,
     watchdog::Wdt,
 };
 use nb::block;
@@ -45,6 +45,62 @@ use st7735_lcd::Orientation;
 static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
 static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
 
+pub struct Delay {}
+
+impl Delay {
+    /// Configures the system timer (SysTick) as a delay provider
+    pub fn new() -> Self {
+        Delay {}
+    }
+
+    /// Releases the system timer (SysTick) resource
+    pub fn free(self) {}
+}
+
+impl DelayMs<u32> for Delay {
+    fn delay_ms(&mut self, ms: u32) {
+        self.delay_us(ms * 1_000);
+    }
+}
+
+impl DelayMs<u16> for Delay {
+    fn delay_ms(&mut self, ms: u16) {
+        self.delay_ms(ms as u32);
+    }
+}
+
+impl DelayMs<u8> for Delay {
+    fn delay_ms(&mut self, ms: u8) {
+        self.delay_ms(ms as u32);
+    }
+}
+
+impl DelayUs<u32> for Delay {
+    fn delay_us(&mut self, us: u32) {
+        // Tricky to get this to not overflow
+        let mut i = us;
+        asm::nop();
+        loop {
+            asm::nop();
+            i -= 1;
+            if i == 0 {
+                break;
+            }
+        }
+    }
+}
+
+impl DelayUs<u16> for Delay {
+    fn delay_us(&mut self, us: u16) {
+        self.delay_us(us as u32)
+    }
+}
+
+impl DelayUs<u8> for Delay {
+    fn delay_us(&mut self, us: u8) {
+        self.delay_us(us as u32)
+    }
+}
 
 fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
     const B: &[u8; 16] = b"0123456789abcdef";
@@ -131,7 +187,8 @@ fn main() -> ! {
         rst.set_high().unwrap();
         csd.set_high().unwrap();
         csd.set_low().unwrap();
-        let mut display = st7735_lcd::ST7735::new(spid, dc, rst, false, false, 160, 128);
+        let mut display = st7735_lcd::ST7735::new(spid, dc, rst, false, false, 130, 130);
+        // let mut display = st7735_lcd::ST7735::new(spid, dc, rst, false, false, 160, 128);
 
         let mut p3_1 = p3.pin1;
         let mut p3_3 = p3.pin3;

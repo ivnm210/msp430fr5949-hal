@@ -88,26 +88,26 @@ fn print_u16<U: SerialUsci>(tx: &mut Tx<U>, num: u16) {
 }
 
 // fn print_hex<U: SerialUsci>(tx: &mut Tx<U>, h: u16) {
-    // let c = match h {
-        // 0 => '0',
-        // 1 => '1',
-        // 2 => '2',
-        // 3 => '3',
-        // 4 => '4',
-        // 5 => '5',
-        // 6 => '6',
-        // 7 => '7',
-        // 8 => '8',
-        // 9 => '9',
-        // 10 => 'a',
-        // 11 => 'b',
-        // 12 => 'c',
-        // 13 => 'd',
-        // 14 => 'e',
-        // 15 => 'f',
-        // _ => '?',
-    // };
-    // write(tx, c);
+// let c = match h {
+// 0 => '0',
+// 1 => '1',
+// 2 => '2',
+// 3 => '3',
+// 4 => '4',
+// 5 => '5',
+// 6 => '6',
+// 7 => '7',
+// 8 => '8',
+// 9 => '9',
+// 10 => 'a',
+// 11 => 'b',
+// 12 => 'c',
+// 13 => 'd',
+// 14 => 'e',
+// 15 => 'f',
+// _ => '?',
+// };
+// write(tx, c);
 // }
 #[inline(always)]
 fn print_hex<U: SerialUsci>(tx: &mut Tx<U>, h: u16) {
@@ -214,7 +214,6 @@ fn main() -> ! {
         )
         .use_smclk(&smclk)
         .split(p2.pin5.to_alternate2(), p2.pin6.to_alternate2());
-
 
         let p = unsafe { msp430fr5949::Peripherals::steal() };
         let p1 = Batch::new(P1 { port: p.PORT_1_2 }).split(&pmm);
@@ -421,7 +420,7 @@ fn PORT1() {
         });
 
         // MYBOOL.borrow(*cs).borrow_mut().as_mut().map(|mybool| {
-            // mybool.set();
+        // mybool.set();
         // });
     });
 }
