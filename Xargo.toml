@@ -1,0 +1,7 @@
+#[target.msp430-none-elf.dependencies]
+#features = ["alloc"]
+[dependencies.alloc]
+[dependencies.panic_abort]
+[dependencies.panic_unwind]
+
+
