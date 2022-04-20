@@ -11,6 +11,7 @@ use msp430_rt::entry;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
+    delay::Delay,
     fram::Fram,
     gpio::{Batch, GpioVector, Output, Pin, Pin3, PxIV, P1, P2, P3},
     pmm::Pmm,
@@ -39,7 +40,6 @@ use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::*;
-use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 use st7735_lcd::Orientation;
 
 // #[cfg(debug_assertions)]
@@ -48,73 +48,6 @@ use st7735_lcd::Orientation;
 static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
 static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
 static MYBOOL: Mutex<RefCell<Option<mbool>>> = Mutex::new(RefCell::new(None));
-
-fn delay(n: u32) {
-    let mut i = 0;
-    loop {
-        asm::nop();
-        i += 1;
-        if i == n {
-            break;
-        }
-    }
-}
-
-pub struct Delay {}
-
-impl Delay {
-    /// Configures the system timer (SysTick) as a delay provider
-    pub fn new() -> Self {
-        Delay {}
-    }
-
-    /// Releases the system timer (SysTick) resource
-    pub fn free(self) {}
-}
-
-impl DelayMs<u32> for Delay {
-    fn delay_ms(&mut self, ms: u32) {
-        self.delay_us(ms * 1_000);
-    }
-}
-
-impl DelayMs<u16> for Delay {
-    fn delay_ms(&mut self, ms: u16) {
-        self.delay_ms(ms as u32);
-    }
-}
-
-impl DelayMs<u8> for Delay {
-    fn delay_ms(&mut self, ms: u8) {
-        self.delay_ms(ms as u32);
-    }
-}
-
-impl DelayUs<u32> for Delay {
-    fn delay_us(&mut self, us: u32) {
-        // Tricky to get this to not overflow
-        let mut i = 0;
-        loop {
-            asm::nop();
-            i += 1;
-            if i == us {
-                break;
-            }
-        }
-    }
-}
-
-impl DelayUs<u16> for Delay {
-    fn delay_us(&mut self, us: u16) {
-        self.delay_us(us as u32)
-    }
-}
-
-impl DelayUs<u8> for Delay {
-    fn delay_us(&mut self, us: u8) {
-        self.delay_us(us as u32)
-    }
-}
 
 #[derive(Clone, Copy)]
 enum RadioState {
@@ -146,6 +79,56 @@ fn prepare_pkt(pkt: &mut [u8; 32], cnt: u16) {
     pkt[30] = ((cnt >> 8) & 0xFF) as u8;
     pkt[31] = (cnt & 0xff) as u8;
 }
+
+static B: &[u8; 16] = b"0123456789abcdef";
+
+fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
+    let b0 = B[(val / 16) as usize];
+    let b1 = B[(val % 16) as usize];
+    [b0, b1]
+}
+fn myprint_u16_as_hex(val: u8) -> [u8; 4] {
+    let b0 = B[((val / 32) / 16) as usize];
+    let b1 = B[((val / 32) % 16) as usize];
+    let b2 = B[((val / 16) % 16) as usize];
+    let b3 = B[(val % 16) as usize];
+    [b0, b1, b2, b3]
+}
+fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
+    const B: &[u8; 10] = b"0123456789";
+    let b0 = B[(val / 100) as usize];
+    let b1 = B[((val / 10) % 10) as usize];
+    let b2 = B[(val % 10) as usize];
+    [b0, b1, b2]
+}
+
+// fn display_u8<SPI, DC, RST>(display: &st7735_lcd::ST7735, point: Point, count: u8) {
+    // let bytes = myprint_u8_as_dec(count);
+    // Rectangle::new(
+        // point,
+        // Size {
+            // width: 17,
+            // height: 12,
+        // },
+    // )
+    // .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+    // .draw(&mut display)
+    // .unwrap();
+//
+    // let output = core::str::from_utf8(&bytes).unwrap();
+    // Text::with_baseline(&output, point, text_style, Baseline::Top)
+        // .draw(&mut display.color_converted())
+        // .unwrap();
+// }
+
+// fn print_rec_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize) -> u16 {
+//     tx.bwrite_all(b"read = ").unwrap();
+//     tx.bwrite_all(&buf[0..len - 1]).unwrap();
+//     let cnt: u16 = ((buf[30] as u16) << 8) + (buf[31] as u16);
+//     tx.bwrite_all(b" ").unwrap();
+//     print_u16(tx, cnt);
+//     cnt
+// }
 
 // #[cfg(not(debug_assertions))]
 // use panic_never as _;
@@ -248,15 +231,40 @@ fn main() -> ! {
         let mybool = mbool::new(true);
         free(|cs| *MYBOOL.borrow(*cs).borrow_mut() = Some(mybool));
 
+        let mut count = 0u8;
+        display.init(&mut delay).unwrap();
+        display.set_orientation(&Orientation::Landscape).unwrap();
+        display.clear(Rgb565::BLACK).unwrap();
+
+        let text_style = MonoTextStyleBuilder::new()
+            .font(&FONT_6X10)
+            .text_color(BinaryColor::On)
+            .build();
+
         let mut ce = p2.pin4.to_output();
         let mut csn = p3.pin0.to_output();
         ce.set_low().unwrap();
         csn.set_high().unwrap();
+        Text::with_baseline("Hello Rust!", Point::zero(), text_style, Baseline::Top)
+            .draw(&mut display.color_converted())
+            .unwrap();
         // tx.bwrite_all(b"we have ce csn\r\n").ok();
         let mut nrf24 = NRF24L01::new(ce, csn, spi).unwrap();
         // tx.bwrite_all(b"We have nrf\r\n").ok();
+        Text::with_baseline("We have nrf", Point::new(0, 11), text_style, Baseline::Top)
+            .draw(&mut display.color_converted())
+            .unwrap();
 
         nrf24.set_frequency(90).unwrap();
+        Text::with_baseline(
+            "we have frequency",
+            Point::new(0, 22),
+            text_style,
+            Baseline::Top,
+        )
+        .draw(&mut display.color_converted())
+        .unwrap();
+
         // tx.bwrite_all(b"We have frequency\r\n").ok();
         nrf24.set_auto_retransmit(0, 0).unwrap();
         nrf24.set_rf(&nrf24::DataRate::R2Mbps, 3).unwrap();
@@ -272,24 +280,6 @@ fn main() -> ! {
         nrf24.set_rx_addr(0, &b"fnord"[..]).unwrap();
         nrf24.set_interrupt_mask(false, false, false).unwrap();
         nrf24.clear_interrupts().unwrap();
-
-        let mut count = 0u8;
-        display.init(&mut delay).unwrap();
-        display.set_orientation(&Orientation::Landscape).unwrap();
-        display.clear(Rgb565::BLACK).unwrap();
-
-        let text_style = MonoTextStyleBuilder::new()
-            .font(&FONT_6X10)
-            .text_color(BinaryColor::On)
-            .build();
-
-        Text::with_baseline("Hello world!", Point::zero(), text_style, Baseline::Top)
-            .draw(&mut display.color_converted())
-            .unwrap();
-
-        Text::with_baseline("Hello Rust!", Point::new(0, 16), text_style, Baseline::Top)
-            .draw(&mut display.color_converted())
-            .unwrap();
 
         wdt.set_aclk(&aclk)
             // wdt.set_smclk(&smclk)

@@ -1,7 +1,7 @@
 //! Delay abstractions for delay loops.
 //!
-use msp430::asm;
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
+use msp430::asm;
 
 /// Delay struct for MSP430 delay loops
 pub struct Delay {}

@@ -34,3 +34,8 @@ rustflags = [
 [build]
 target = "msp430-none-elf"
 #rustflags = "-g"
+
+#[unstable]
+#build-std = ["core"]
+
+

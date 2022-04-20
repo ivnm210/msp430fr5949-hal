@@ -1,13 +1,12 @@
-//! Serial Peripheral Interface (SPI) bus
+//! I2c bus
 
 use crate::gpio::{Alternate2, Pin, Pin2, Pin6, Pin7}; //, P1, P4};
-                                                      // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
 use crate::gpio::{P1, P2};
-use embedded_hal::blocking::i2c::{Write};
+use embedded_hal::blocking::i2c::Write;
 use msp430fr5949::USCI_B0_I2C_MODE;
 use nb;
 
-/// SPI error
+/// I2C error
 #[derive(Debug)]
 pub enum Error {
     #[doc(hidden)]
@@ -18,25 +17,15 @@ pub enum Error {
 /// SCK pin -- DO NOT IMPLEMENT THIS TRAIT
 pub unsafe trait SckPin<I2C> {}
 
-/// MISO pin -- DO NOT IMPLEMENT THIS TRAIT
-pub unsafe trait MisoPin<I2C> {}
-
-/// MOSI pin -- DO NOT IMPLEMENT THIS TRAIT
-pub unsafe trait MosiPin<I2C> {}
+/// SDA pin -- DO NOT IMPLEMENT THIS TRAIT
+pub unsafe trait SdaPin<I2C> {}
 
 // I2C0
 unsafe impl<DIR> SckPin<USCI_B0_I2C_MODE> for Pin<P2, Pin2, Alternate2<DIR>> {}
-unsafe impl<DIR> MisoPin<USCI_B0_I2C_MODE> for Pin<P1, Pin7, Alternate2<DIR>> {}
-unsafe impl<DIR> MosiPin<USCI_B0_I2C_MODE> for Pin<P1, Pin6, Alternate2<DIR>> {}
+unsafe impl<DIR> SdaPin<USCI_B0_I2C_MODE> for Pin<P1, Pin6, Alternate2<DIR>> {}
 
-/// SPI peripheral operating in full duplex master mode
-// pub struct Spi<SPI, PINS, USCI:SerialUsci> {
-//     spi: SPI,
-//     pins: PINS,
-//     tx: Tx<USCI>,
-// }
 pub struct I2c<I2C, PINS> {
-    spi: I2C,
+    i2c: I2C,
     pins: PINS,
 }
 
@@ -51,22 +40,18 @@ macro_rules! busy_wait {
     };
 }
 
-macro_rules! hal {
+macro_rules! hal2 {
     ($($I2CX:ident: ($i2cX:ident),)+) => {
         $(
-            //impl<SCK, MISO, MOSI, USCI: SerialUsci> Spi<$SPIX, (SCK, MISO, MOSI), USCI> {
-            impl<SCK, MISO, MOSI> I2c<$I2CX, (SCK, MISO, MOSI)> {
-                /// Configures the SPI peripheral to operate in full duplex master mode
-                // pub fn $spiX<F>(
+            impl<SCK, SDA> I2c<$I2CX, (SCK, SDA)> {
                 pub fn $i2cX (
                     i2c: $I2CX,
-                    pins: (SCK, MISO, MOSI),
+                    pins: (SCK, SDA),
                 ) -> Self
                 where
                     // F: Into<Hertz>,
-                    SCK: SckPin<$SPIX>,
-                    MISO: MisoPin<$SPIX>,
-                    MOSI: MosiPin<$SPIX>,
+                    SCK: SckPin<$I2CX>,
+                    SDA: SdaPin<$I2CX>,
                 {
                     i2c.ucb0ctl0_i2c.write(|w| unsafe { w.bits(1) } );
                     i2c.ucb0ctl0_i2c.modify(|r,w| unsafe { w.bits(r.bits() | 0x80) } );
@@ -74,15 +59,11 @@ macro_rules! hal {
                     i2c.ucb0br0_i2c.write(|w| unsafe { w.bits(2) } );
                     i2c.ucb0ctl0_i2c.modify(|r,w| unsafe { w.bits(r.bits() & 0xFE) } );
 
-                    //Spi { spi, pins, tx }
                     I2c { i2c, pins }
                 }
 
-                /// Releases the SPI peripheral and associated pins
-                // pub fn free(self) -> ($SPIX, (SCK, MISO, MOSI), Tx<USCI>) {
-                //     (self.spi, self.pins, self.tx)
-                // }
-                pub fn free(self) -> ($I2CX, (SCK, MISO, MOSI)) {
+                /// Releases the I2C peripheral and associated pins
+                pub fn free(self) -> ($I2CX, (SCK, SDA)) {
                     (self.i2c, self.pins)
                 }
 
@@ -121,37 +102,27 @@ macro_rules! hal {
                 // }
             }
 
-            //impl<PINS, USCI: SerialUsci> FullDuplex<u8> for Spi<$SPIX, PINS, USCI> {
             impl<PINS> Write<A: AddressMode = SevenBitAddress> for I2c<$I2CX, PINS> {
                 type Error = Error;
 
                 fn write(&mut self, address: A, bytes: &[u8]) -> nb::Result<(), Error> {
                     // Transmit FIFO Not Full
-                    //self.tx.bwrite_all(b"spi send\n\r");
                     if self.i2c.ucb0ifg_i2c.read().uctxifg().bit_is_clear() {
-                         //self.tx.bwrite_all(b"err\n\r");
                          Err(nb::Error::WouldBlock)
                     } else {
                         self.i2c.ucb0txbuf_i2c.write(|w| unsafe {
                              w.bits(byte.into())
                         });
-                        //self.tx.bwrite_all(b"wait\n\r");
                         busy_wait!(self.i2c, uctxifg, bit_is_set);
                         Ok(())
                     }
                 }
             }
 
-            //impl<PINS, USCI: SerialUsci> embedded_hal::blocking::spi::transfer::Default<u8> for Spi<$SPIX, PINS, USCI> {}
-            impl<PINS> embedded_hal::blocking::spi::transfer::Default<u8> for I2c<$I2CX, PINS> {}
-
-            //impl<PINS, USCI: SerialUsci> embedded_hal::blocking::spi::write::Default<u8> for Spi<$SPIX, PINS, USCI> {}
-            impl<PINS> embedded_hal::blocking::spi::write::Default<u8> for I2c<$I2CX, PINS> {}
         )+
     }
 }
 
-hal! {
-    //USCI_B0_SPI_MODE: (spi0, USCI_A1_UART_MODE),
+hal2! {
     USCI_B0_I2C_MODE: (i2c0),
 }

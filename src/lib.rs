@@ -31,14 +31,14 @@
 
 pub mod batch_gpio;
 pub mod capture;
-pub mod delay;
 pub mod clock;
+pub mod delay;
 pub mod fram;
 pub mod gpio;
 pub mod pmm;
 pub mod prelude;
 pub mod pwm;
-pub mod rtc;
+//pub mod rtc;
 pub mod serial;
 pub mod spi;
 pub mod timer;

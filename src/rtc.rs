@@ -1,50 +1,20 @@
 //! Real time counter
 //!
 //! Can be used as a periodic 16-bit timer
-/*
 use crate::clock::Smclk;
 use core::marker::PhantomData;
 use embedded_hal::timer::{Cancel, CountDown, Periodic};
 use msp430fr5949 as pac;
-use pac::{rtc::rtcctl::RTCSS_A, RTC_B_REAL_TIME_CLOCK as RTC};
+use pac::RTC_B_REAL_TIME_CLOCK as RTC;
 use void::Void;
 
 mod sealed {
     use super::*;
-
-    pub trait SealedRtcClockSrc {}
-
-    impl SealedRtcClockSrc for RtcSmclk {}
-    impl SealedRtcClockSrc for RtcVloclk {}
-}
-
-// Marker trait for RTC clock sources
-pub trait RtcClockSrc: sealed::SealedRtcClockSrc {
-    #[doc(hidden)]
-    const CLK_SRC: RTCSS_A;
 }
 
 // Typestate representing the SMCLK clock source for RTC
-pub struct RtcSmclk;
 
-impl RtcClockSrc for RtcSmclk {
-    const CLK_SRC: RTCSS_A = RTCSS_A::SMCLK;
-}
-
-// Typestate representing the VLOCLK clock source for RTC
-pub struct RtcVloclk;
-
-impl RtcClockSrc for RtcVloclk {
-    const CLK_SRC: RTCSS_A = RTCSS_A::VLOCLK;
-}
-
-// 16-bit real-time counter
-pub struct Rtc<SRC: RtcClockSrc> {
-    periph: RTC,
-    _src: PhantomData<SRC>,
-}
-
-impl Rtc<RtcVloclk> {
+impl Rtc {
     // Convert into RTC object with VLOCLK as clock source
     pub fn new(rtc: RTC) -> Self {
         Rtc {
@@ -54,28 +24,9 @@ impl Rtc<RtcVloclk> {
     }
 }
 
-pub use pac::rtc::rtcctl::RTCPS_A as RtcDiv;
-
-impl<SRC: RtcClockSrc> Rtc<SRC> {
+impl Rtc {
     // Configure the RTC to use SMCLK as clock source. Setting comes in effect the next time RTC
     // is started.
-    #[inline]
-    pub fn use_smclk(self, _smclk: &Smclk) -> Rtc<RtcSmclk> {
-        Rtc {
-            periph: self.periph,
-            _src: PhantomData,
-        }
-    }
-
-    // Configure the RTC to use VLOCLK as clock source. Setting comes in effect the next time RTC
-    // is started.
-    #[inline]
-    pub fn use_vloclk(self) -> Rtc<RtcVloclk> {
-        Rtc {
-            periph: self.periph,
-            _src: PhantomData,
-        }
-    }
 
     // Set RTC clock frequency divider
     #[inline]
@@ -110,23 +61,23 @@ impl<SRC: RtcClockSrc> Rtc<SRC> {
     }
 }
 
-impl<SRC: RtcClockSrc> CountDown for Rtc<SRC> {
+impl CountDown for Rtc {
     type Time = u16;
 
     #[inline]
     fn start<T: Into<Self::Time>>(&mut self, count: T) {
-        self.periph
-            .rtcmod
-            .write(|w| unsafe { w.bits(count.into()) });
-        //  Need to clear interrupt flag from last timer run
-        self.periph.rtciv.read();
-        self.periph.rtcctl.modify(|r, w| {
-            unsafe { w.bits(r.bits()) }
-                .rtcss()
-                .variant(SRC::CLK_SRC)
-                .rtcsr()
-                .set_bit()
-        });
+        // self.periph
+        //     .rtcmod
+        //     .write(|w| unsafe { w.bits(count.into()) });
+        // //  Need to clear interrupt flag from last timer run
+        // self.periph.rtciv.read();
+        // self.periph.rtcctl.modify(|r, w| {
+        //     unsafe { w.bits(r.bits()) }
+        //         .rtcss()
+        //         .variant(SRC::CLK_SRC)
+        //         .rtcsr()
+        //         .set_bit()
+        // });
     }
 
     #[inline]
@@ -140,20 +91,19 @@ impl<SRC: RtcClockSrc> CountDown for Rtc<SRC> {
     }
 }
 
-impl<SRC: RtcClockSrc> Cancel for Rtc<SRC> {
+impl Cancel for Rtc {
     type Error = Void;
 
     #[inline]
     fn cancel(&mut self) -> Result<(), Self::Error> {
-        unsafe {
-            self.periph
-                .rtcctl
-          //      Bit pattern is all 0s, so we can use clear instead of modify
-                .clear_bits(|w| w.rtcss().variant(RTCSS_A::DISABLED))
-        };
+        // unsafe {
+        //     self.periph
+        //         .rtcctl
+        //         //      Bit pattern is all 0s, so we can use clear instead of modify
+        //         .clear_bits(|w| w.rtcss().variant(RTCSS_A::DISABLED))
+        // };
         Ok(())
     }
 }
 
-impl<SRC: RtcClockSrc> Periodic for Rtc<SRC> {}
-*/
+impl Periodic for Rtc {}

@@ -1,8 +1,14 @@
+// testing alloc, format, display
 #![no_main]
 #![no_std]
 #![feature(abi_msp430_interrupt)]
-
-use core::cell::RefCell;
+#![feature(alloc_error_handler)]
+#![feature(alloc)]
+extern crate alloc;
+use self::alloc::string::String;
+use alloc::fmt::format;
+use core::alloc::Layout;
+use core::cell::{RefCell, UnsafeCell};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430::interrupt::{enable as enable_int, free, Mutex};
@@ -10,12 +16,12 @@ use msp430_rt::entry;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
+    delay::Delay,
     fram::Fram,
     gpio::{Batch, GpioVector, Output, Pin, Pin3, PxIV, P1, P2, P3},
     pmm::Pmm,
     serial::*,
     spi::*,
-    delay::Delay,
     watchdog::Wdt,
 };
 use nb::block;
@@ -39,19 +45,80 @@ use embedded_graphics::draw_target::DrawTarget;
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 use st7735_lcd::Orientation;
 
+use core::alloc::GlobalAlloc;
+use core::ptr;
+
+struct BumpPointerAlloc {
+    head: UnsafeCell<usize>,
+    end: usize,
+}
+
+unsafe impl Sync for BumpPointerAlloc {}
+
+unsafe impl GlobalAlloc for BumpPointerAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        free(|_| {
+            let head = self.head.get();
+            let size = layout.size();
+            let align = layout.align();
+            let align_mask = !(align - 1);
+            let start = (*head + align - 1) & align_mask;
+
+            if start + size > self.end {
+                ptr::null_mut()
+            } else {
+                *head = start + size;
+                start as *mut u8
+            }
+        })
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let head = self.head.get();
+        let size = layout.size();
+        *head = ptr as usize - size;
+    }
+}
+
+#[global_allocator]
+static HEAP: BumpPointerAlloc = BumpPointerAlloc {
+    head: UnsafeCell::new(0x0000_2300),
+    end: 0x0000_2400,
+};
+
+#[alloc_error_handler]
+fn on_oom(_layout: Layout) -> ! {
+    //asm::nop();
+
+    loop {}
+}
+
 // #[cfg(debug_assertions)]
 //use panic_msp430 as _;
 
 static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
 static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
 
+static B: &[u8; 16] = b"0123456789abcdef";
 
 fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
-    const B: &[u8; 16] = b"0123456789abcdef";
     let b0 = B[(val / 16) as usize];
     let b1 = B[(val % 16) as usize];
     [b0, b1]
 }
+fn myprint_u16_as_hex(val: u8) -> [u8; 4] {
+    let b0 = B[((val / 32) / 16) as usize];
+    let b1 = B[((val / 32) % 16) as usize];
+    let b2 = B[((val / 16) % 16) as usize];
+    let b3 = B[(val % 16) as usize];
+    [b0, b1, b2, b3]
+}
+// fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
+//     const B: &[u8; 16] = b"0123456789abcdef";
+//     let b0 = B[(val / 16) as usize];
+//     let b1 = B[(val % 16) as usize];
+//     [b0, b1]
+// }
 
 fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
     const B: &[u8; 10] = b"0123456789";
@@ -60,6 +127,28 @@ fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
     let b2 = B[(val % 10) as usize];
     [b0, b1, b2]
 }
+
+// fn display_u8<D>(display: &mut D, text_style: TextStyle, point: Point, count: u8)
+// where
+//     D: DrawTarget<Color = Self::Color>,
+// {
+//     let bytes = myprint_u8_as_dec(count);
+//     Rectangle::new(
+//         point,
+//         Size {
+//             width: 17,
+//             height: 12,
+//         },
+//     )
+//     .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+//     .draw(&mut display)
+//     .unwrap();
+
+//     let output = core::str::from_utf8(&bytes).unwrap();
+//     Text::with_baseline(&output, point, text_style, Baseline::Top)
+//         .draw(&mut display.color_converted())
+//         .unwrap();
+// }
 
 // #[cfg(not(debug_assertions))]
 // use panic_never as _;
@@ -169,6 +258,8 @@ fn main() -> ! {
             .unwrap();
 
         let mut count = 0u8;
+        // let s = String::from("help");
+        let s = format(format_args!("{}", count));
 
         loop {
             // let bytes = myprint_u8_as_hex(count);
@@ -188,6 +279,7 @@ fn main() -> ! {
             Text::with_baseline(&output, Point::new(0, 24), text_style, Baseline::Top)
                 .draw(&mut display.color_converted())
                 .unwrap();
+            // display_u8(&mut display, text_style, Point::new(0, 24), count);
             count += 1;
             delay.delay_ms(1000u32);
         }
