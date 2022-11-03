@@ -19,6 +19,7 @@ display-interface-spi = "0.4.1"
 embedded-graphics = "0.7.1"
 st7735-lcd = "0.8.1"
 #st7735 = "0.1.0"
+#ufmt="0.1.0"
 
 [dependencies.void]
 version = "1.0.2"
@@ -47,6 +48,7 @@ path="../embedded-nrf24l01"
 lto = "fat"
 codegen-units = 1
 opt-level = "z"
+strip = true
 
 [profile.dev]
 opt-level = "s"

@@ -23,7 +23,6 @@ extern crate embedded_nrf24l01;
 use core::panic::PanicInfo;
 use embedded_nrf24l01 as nrf24;
 use embedded_nrf24l01::*;
-
 // #[cfg(debug_assertions)]
 //use panic_msp430 as _;
 
