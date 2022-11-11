@@ -9,10 +9,11 @@ use msp430::asm;
 use msp430::interrupt::{enable as enable_int, free, Mutex};
 use msp430_rt::entry;
 use msp430fr5949::interrupt;
+use msp430fr5949_hal::gpio::{Input, Pulldown};
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
     fram::Fram,
-    gpio::{Batch, GpioVector, Output, Pin, Pin3, PxIV, P1, P2, P3},
+    gpio::{Batch, GpioVector, Output, Pin, Pin2, Pin3, PxIV, P1, P2, P3},
     pmm::Pmm,
     serial::*,
     spi::*,
@@ -27,6 +28,8 @@ use embedded_nrf24l01::*;
 //use panic_msp430 as _;
 
 static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
+static INT_PIN: Mutex<RefCell<Option<Pin<P1, Pin2, Input<Pulldown>>>>> =
+    Mutex::new(RefCell::new(None));
 static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
 static MYBOOL: Mutex<RefCell<Option<mbool>>> = Mutex::new(RefCell::new(None));
 
@@ -246,6 +249,7 @@ fn main() -> ! {
         let p1iv = p1.pxiv;
 
         free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
+        free(|cs| *INT_PIN.borrow(*cs).borrow_mut() = Some(p1_2));
         free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
         let mybool = mbool::new(true);
         free(|cs| *MYBOOL.borrow(*cs).borrow_mut() = Some(mybool));
@@ -417,6 +421,11 @@ fn PORT1() {
                 _ => panic!(),
             }
         });
+        INT_PIN
+            .borrow(*cs)
+            .borrow_mut()
+            .as_mut()
+            .map(|p1_2| p1_2.clear_ifg());
 
         // MYBOOL.borrow(*cs).borrow_mut().as_mut().map(|mybool| {
         // mybool.set();

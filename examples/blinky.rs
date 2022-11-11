@@ -135,7 +135,7 @@ fn main() -> ! {
     let mut p3_7 = p3.pin7;
     // let p2_3 = p2.pin3;
     // let mut p6_6 = p6.pin6;
-    let mut count = 0;
+    // let mut count = 0;
     p3_5.set_low().unwrap();
     p3_6.set_low().unwrap();
     p3_6.set_high().unwrap();
