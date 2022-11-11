@@ -7,10 +7,8 @@
 //! be decided before any of them can be used. This differs from `Pwm`, where pins are initialized
 //! on an individual basis.
 
-use crate::gpio::{
-    Alternate1, Alternate3, Floating, Input, Pin, Pin0, Pin1, Pin3, Pin4, Pin5, Pin6, Pin7,
-}; //,
-   // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
+use crate::gpio::{Alternate1, Alternate3, Floating, Input, Pin, Pin3, Pin4, Pin5, Pin6, Pin7}; //,
+                                                                                               // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
 use crate::gpio::{P1, P2, P3};
 use crate::hw_traits::timerb::{CCRn, Ccis, Cm};
 use crate::timer::{read_tbxiv, CapCmpTimer3, CapCmpTimer7, TimerVector};

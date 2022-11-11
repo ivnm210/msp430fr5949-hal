@@ -11,7 +11,7 @@ use crate::gpio::{
     Pin6, Pin7,
 };
 // use crate::hw_traits::gpio::{p1::P1, p2::P2, p3::P3, p4::P4};
-use crate::gpio::{P1, P2, P3};
+use crate::gpio::{P1, P3};
 use crate::hw_traits::timerb::{CCRn, Outmod};
 use crate::timer::{CapCmpTimer3, CapCmpTimer7};
 use core::marker::PhantomData;
