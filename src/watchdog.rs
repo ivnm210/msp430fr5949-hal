@@ -14,8 +14,27 @@ use pac::watchdog_timer::WDTCTL;
 
 const PASSWORD: u8 = 0x5A;
 
+/// period power division
+pub enum WdtClkPeriods {
+    /// divide by 2^31
+    DIV31 = 0,
+    /// divide by 2^27
+    DIV27,
+    /// divide by 2^23
+    DIV23,
+    /// divide by 2^19
+    DIV19,
+    /// divide by 2^15
+    DIV15,
+    /// divide by 2^13
+    DIV13,
+    /// divide by 2^9
+    DIV9,
+    /// divide by 2^6
+    DIV6,
+}
 //pub use pac::watchdog_timer::wdtctl::WDTIS_A as WdtClkPeriods;
-pub use u8 as WdtClkPeriods;
+//pub use u8 as WdtClkPeriods;
 
 mod sealed {
     use super::*;
@@ -136,7 +155,7 @@ impl<MODE: WatchdogSelect> Wdt<MODE> {
                     .wdthold()
                     .clear_bit() //.unhold()
                     .wdtis()
-                    .bits(periods) //.variant(periods)
+                    .bits(periods as u8) //.variant(periods)
             });
         }
     }

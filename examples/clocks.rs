@@ -8,7 +8,7 @@ use msp430_rt::entry;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
-    gpio::Batch,
+    gpio::{Batch, P3},
     pmm::Pmm,
     watchdog::{Wdt, WdtClkPeriods},
 };
@@ -33,11 +33,11 @@ fn main() -> ! {
 
     let (smclk, _aclk) = ClockConfig::new(periph.CS)
         .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
-        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel: _16MHz)
+        .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
         .aclk_vloclk()
         .freeze(&mut fram);
 
-    const DELAY: WdtClkPeriods = WdtClkPeriods::_8192K;
+    const DELAY: WdtClkPeriods = WdtClkPeriods::DIV15;
 
     // blinks should be 1 second on, 1 second off
     let mut wdt = wdt.to_interval();
