@@ -296,6 +296,40 @@ impl<T: TimerPeriph + CapCmp<CCR0>> Cancel for Timer<T> {
     }
 }
 
+/// Trait for cancelable countdowns.
+pub trait MyDbg: CountDown {
+    /// Error returned when a countdown can't be canceled.
+    type Error;
+
+    /// Tries to cancel this countdown.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the countdown has already been canceled or was never started.
+    /// An error is also returned if the countdown is not `Periodic` and has already expired.
+    fn readctl_reg(&mut self) -> Result<u16, Self::Error>;
+    /// read r reg
+    fn read_reg(&mut self) -> Result<u16, Self::Error>;
+}
+
+impl<T: TimerPeriph + CapCmp<CCR0>> MyDbg for Timer<T> {
+    type Error = void::Void;
+
+    #[inline(always)]
+    fn readctl_reg(&mut self) -> Result<u16, Self::Error> {
+        let timer = unsafe { T::steal() };
+        // Ok(timer.ccifg_rd_reg())
+        Ok(timer.tbxctl_rd())
+    }
+
+    #[inline(always)]
+    fn read_reg(&mut self) -> Result<u16, Self::Error> {
+        let timer = unsafe { T::steal() };
+        // Ok(timer.ccifg_rd_reg())
+        Ok(timer.tbxiv_rd())
+    }
+}
+
 impl<T: TimerPeriph> Periodic for Timer<T> {}
 
 impl<T: TimerPeriph> Timer<T> {
@@ -351,4 +385,13 @@ impl<T: CapCmp<C>, C> SubTimer<T, C> {
         let timer = unsafe { T::steal() };
         timer.ccie_clr();
     }
+    
+    #[inline]
+    /// Debug a register 
+    pub fn read(&mut self) -> nb::Result<u16, void::Void> {
+        let timer = unsafe { T::steal() };
+        // Ok(timer.ccifg_rd_reg())
+        Ok(timer.get_ccrn())
+    }
 }
+

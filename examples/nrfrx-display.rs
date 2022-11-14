@@ -87,7 +87,7 @@ fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
     let b1 = B[(val % 16) as usize];
     [b0, b1]
 }
-fn myprint_u16_as_hex(val: u8) -> [u8; 4] {
+fn myprint_u16_as_hex(val: u16) -> [u8; 4] {
     let b0 = B[((val / 32) / 16) as usize];
     let b1 = B[((val / 32) % 16) as usize];
     let b2 = B[((val / 16) % 16) as usize];
@@ -103,22 +103,22 @@ fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
 }
 
 // fn display_u8<SPI, DC, RST>(display: &st7735_lcd::ST7735, point: Point, count: u8) {
-    // let bytes = myprint_u8_as_dec(count);
-    // Rectangle::new(
-        // point,
-        // Size {
-            // width: 17,
-            // height: 12,
-        // },
-    // )
-    // .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-    // .draw(&mut display)
-    // .unwrap();
+// let bytes = myprint_u8_as_dec(count);
+// Rectangle::new(
+// point,
+// Size {
+// width: 17,
+// height: 12,
+// },
+// )
+// .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+// .draw(&mut display)
+// .unwrap();
 //
-    // let output = core::str::from_utf8(&bytes).unwrap();
-    // Text::with_baseline(&output, point, text_style, Baseline::Top)
-        // .draw(&mut display.color_converted())
-        // .unwrap();
+// let output = core::str::from_utf8(&bytes).unwrap();
+// Text::with_baseline(&output, point, text_style, Baseline::Top)
+// .draw(&mut display.color_converted())
+// .unwrap();
 // }
 
 // fn print_rec_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize) -> u16 {
@@ -251,14 +251,11 @@ fn main() -> ! {
         // tx.bwrite_all(b"we have ce csn\r\n").ok();
         let mut nrf24 = NRF24L01::new(ce, csn, spi).unwrap();
         // tx.bwrite_all(b"We have nrf\r\n").ok();
-        Text::with_baseline("We have nrf", Point::new(0, 11), text_style, Baseline::Top)
-            .draw(&mut display.color_converted())
-            .unwrap();
 
         nrf24.set_frequency(90).unwrap();
         Text::with_baseline(
-            "we have frequency",
-            Point::new(0, 22),
+            "We have frequency",
+            Point::new(0, 11),
             text_style,
             Baseline::Top,
         )
@@ -306,8 +303,17 @@ fn main() -> ! {
         txpkt[0] = 0x4f;
         txpkt[1] = 0x4b;
         let mut nextradiost = RadioState::RadioRx;
-        let mut pktcnt = 0;
+        let mut rpktcnt = 0u16;
+        let mut npktcnt = 0u16;
         let mut on = false;
+        Text::with_baseline(
+            "We have nrf start loop",
+            Point::new(0, 22),
+            text_style,
+            Baseline::Top,
+        )
+        .draw(&mut display.color_converted())
+        .unwrap();
 
         loop {
             radiost = nextradiost;
@@ -321,8 +327,10 @@ fn main() -> ! {
                             if let Ok(pl) = nrf24rx.read() {
                                 if pl.len() > 0 {
                                     // pktcnt = print_rec_pkt(&mut tx, pl.as_ref(), pl.len() - 2);
-                                    txpkt[30] = ((pktcnt >> 8) & 0xFF) as u8;
-                                    txpkt[31] = (pktcnt & 0xff) as u8;
+                                    rpktcnt =
+                                        ((pl.as_ref()[30] as u16) << 8) + (pl.as_ref()[31] as u16);
+                                    txpkt[30] = ((rpktcnt >> 8) & 0xFF) as u8;
+                                    txpkt[31] = (rpktcnt & 0xff) as u8;
                                     if pl.as_ref()[0] == 0x41u8 {
                                         on = true;
                                     }
@@ -356,6 +364,22 @@ fn main() -> ! {
                     delay.delay_us(100u32);
                 }
                 RadioState::RadioTx => {
+                    let bytes = myprint_u16_as_hex(rpktcnt);
+                    Rectangle::new(
+                        Point::new(0, 34),
+                        Size {
+                            width: 17,
+                            height: 12,
+                        },
+                    )
+                    .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+                    .draw(&mut display)
+                    .unwrap();
+
+                    let output = core::str::from_utf8(&bytes).unwrap();
+                    Text::with_baseline(&output, Point::new(0, 34), text_style, Baseline::Top)
+                        .draw(&mut display.color_converted())
+                        .unwrap();
                     let mut nrf24tx = nrf24.tx().unwrap();
                     loop {
                         if let Ok(test) = nrf24tx.can_send() {
@@ -407,10 +431,10 @@ fn PORT1() {
 #[interrupt]
 fn WDT() {
     free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-            blue_led.set_low().ok();
-            blue_led.set_high().ok();
-        });
+        // BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+        //     blue_led.set_low().ok();
+        //     blue_led.set_high().ok();
+        // });
         // MYBOOL.borrow(*cs).borrow_mut().as_mut().map(|mybool| {
         //     mybool.set();
         // });

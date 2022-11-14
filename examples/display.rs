@@ -258,12 +258,8 @@ fn main() -> ! {
             .unwrap();
 
         let mut count = 0u8;
-        // let s = String::from("help");
-        let s = format(format_args!("{}", count));
 
         loop {
-            // let bytes = myprint_u8_as_hex(count);
-            let bytes = myprint_u8_as_dec(count);
             Rectangle::new(
                 Point::new(0, 24),
                 Size {
@@ -275,11 +271,16 @@ fn main() -> ! {
             .draw(&mut display)
             .unwrap();
 
-            let output = core::str::from_utf8(&bytes).unwrap();
-            Text::with_baseline(&output, Point::new(0, 24), text_style, Baseline::Top)
-                .draw(&mut display.color_converted())
-                .unwrap();
-            // display_u8(&mut display, text_style, Point::new(0, 24), count);
+            // this does not work
+            let output = format(format_args!("count {}", count));
+            Text::with_baseline(
+                &output.as_str(),
+                Point::new(0, 24),
+                text_style,
+                Baseline::Top,
+            )
+            .draw(&mut display.color_converted())
+            .unwrap();
             count += 1;
             delay.delay_ms(1000u32);
         }

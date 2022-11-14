@@ -187,7 +187,7 @@ fn main() -> ! {
         rst.set_high().unwrap();
         csd.set_high().unwrap();
         csd.set_low().unwrap();
-        let mut display = st7735_lcd::ST7735::new(spid, dc, rst, false, false, 130, 130);
+        let mut display = st7735_lcd::ST7735::new(spid, dc, rst, false, false, 150, 130);
         // let mut display = st7735_lcd::ST7735::new(spid, dc, rst, false, false, 160, 128);
 
         let mut p3_1 = p3.pin1;

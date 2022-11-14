@@ -17,6 +17,7 @@ use msp430fr5949_hal::{
     pmm::Pmm,
     serial::*,
     spi::*,
+    timer::*,
     watchdog::Wdt,
 };
 use nb::block;
@@ -142,8 +143,15 @@ fn print_snd_pkt<U: SerialUsci>(tx: &mut Tx<U>, buf: &[u8], len: usize) {
     tx.bwrite_all(b" ").ok();
     print_u16(tx, cnt);
 }
-// #[cfg(not(debug_assertions))]
-// use panic_never as _;
+
+fn set_time<T: TimerPeriph + CapCmp<C>, C>(
+    timer: &mut Timer<T>,
+    subtimer: &mut SubTimer<T, C>,
+    delay: u16,
+) {
+    timer.start(delay + delay);
+    subtimer.set_count(delay);
+}
 
 // Prints "HELLO" when started then echos on UART1
 // Serial settings are listed in the code
@@ -162,7 +170,8 @@ fn main() -> ! {
 
         let pmm = Pmm::new(periph.PMM);
 
-        delay(100000);
+        //delay(100000);
+        // delay(1000);
 
         let p3 = Batch::new(P3 {
             port: periph.PORT_3_4,
@@ -190,6 +199,7 @@ fn main() -> ! {
         )
         .use_smclk(&smclk)
         .split(p2.pin5.to_alternate2(), p2.pin6.to_alternate2());
+        tx.bwrite_all(b"HELLO\n\r").ok();
 
         let p = unsafe { msp430fr5949::Peripherals::steal() };
         let p1 = Batch::new(P1 { port: p.PORT_1_2 }).split(&pmm);
@@ -221,6 +231,18 @@ fn main() -> ! {
         p3_4.set_low().unwrap();
         p3_6.set_high().unwrap();
         let p1iv = p1.pxiv;
+        let parts = TimerParts3::new(
+            periph.TIMER_0_A3,
+            TimerConfig::smclk(&smclk).clk_div(TimerDiv::_2, TimerExDiv::_5),
+        );
+        let mut timer = parts.timer;
+        let mut subtimer = parts.subtimer2;
+        let mut regctl = timer.readctl_reg().unwrap();
+        print_u16(&mut tx, regctl);
+
+        set_time(&mut timer, &mut subtimer, 500);
+        let mut regctl = timer.readctl_reg().unwrap();
+        print_u16(&mut tx, regctl);
 
         free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
         free(|cs| *INT_PIN.borrow(*cs).borrow_mut() = Some(p1_2));
@@ -254,7 +276,7 @@ fn main() -> ! {
 
         let mut count = 0u8;
 
-        tx.bwrite_all(b"HELLO\n\r").ok();
+        tx.bwrite_all(b"START\n\r").ok();
 
         wdt.set_aclk(&aclk)
             // wdt.set_smclk(&smclk)
@@ -281,6 +303,8 @@ fn main() -> ! {
         prepare_pkt(&mut txpkt, 0u16);
         let mut nextradiost = RadioState::RadioTx;
         let mut pktcnt = 0;
+        txpkt[30] = 0; 
+        txpkt[31] = 0;
 
         loop {
             radiost = nextradiost;
@@ -290,25 +314,30 @@ fn main() -> ! {
                     let mut nrf24rx = nrf24.rx().unwrap();
                     let mut cnt = 0u16;
                     loop {
-                        if let Ok(Some(pipe)) = nrf24rx.can_read() {
-                            if let Ok(pl) = nrf24rx.read() {
-                                if pl.len() > 0 {
-                                    print_rec_pkt(&mut tx, pl.as_ref(), pl.len() - 2);
-                                    pktcnt = pktcnt + 1;
-                                    prepare_pkt(&mut txpkt, pktcnt);
-                                    nextradiost = RadioState::RadioTx;
-                                    delay(200000);
-                                    break;
-                                }
-                            }
-                        }
-                        cnt = cnt + 1;
-                        //progress(&mut tx, (cnt & 0xFF) as u8);
-                        if cnt > 10000 {
-                            nextradiost = RadioState::RadioTx;
-                            //nrf24rx.flush_rx().unwrap();
-                            delay(500);
-                            break;
+                        // block!(subtimer.wait()).void_unwrap();
+                        // block!(timer.wait()).void_unwrap();
+                        match subtimer.wait() {
+                            Ok(_) => {
+                                tx.bwrite_all(b"Timeout rec\n\r").ok();
+                                nextradiost = RadioState::RadioTx;
+                                set_time(&mut timer, &mut subtimer, 500);
+                                break;
+                            },
+                            Err(_) =>
+                                if let Ok(Some(pipe)) = nrf24rx.can_read() {
+                                    if let Ok(pl) = nrf24rx.read() {
+                                        if pl.len() > 0 {
+                                            pktcnt =
+                                                ((pl.as_ref()[30] as u16) << 8) + (pl.as_ref()[31] as u16);
+                                            // print_rec_pkt(&mut tx, pl.as_ref(), pl.len() - 2);
+                                            pktcnt = pktcnt + 1;
+                                            prepare_pkt(&mut txpkt, pktcnt);
+                                            nextradiost = RadioState::RadioTx;
+                                            set_time(&mut timer, &mut subtimer, 1500);
+                                            break;
+                                        }
+                                    }
+                                },
                         }
                     }
                     nrf24rx.flush_rx().unwrap();
@@ -317,16 +346,29 @@ fn main() -> ! {
                 RadioState::RadioTx => {
                     let mut nrf24tx = nrf24.tx().unwrap();
                     loop {
-                        if let Ok(test) = nrf24tx.can_send() {
-                            if test {
-                                print_snd_pkt(&mut tx, &txpkt, txpkt.len() - 2);
-                                nrf24tx.send(&txpkt).unwrap();
-                                nrf24tx.wait_empty().unwrap();
-                                nrf24tx.clear_interrupts().unwrap();
-                                nextradiost = RadioState::RadioRx;
-                                nrf24 = nrf24tx.standby().unwrap();
-                                break;
-                            }
+                        match timer.wait() {
+                            Ok(_) => {
+                                tx.bwrite_all(b"Tx\n\r").ok();
+                                if let Ok(test) = nrf24tx.can_send() {
+                                    if test {
+                                        // print_snd_pkt(&mut tx, &txpkt, txpkt.len() - 2);
+                                        nrf24tx.send(&txpkt).unwrap();
+                                        nrf24tx.wait_empty().unwrap();
+                                        nrf24tx.clear_interrupts().unwrap();
+                                        nextradiost = RadioState::RadioRx;
+                                        nrf24 = nrf24tx.standby().unwrap();
+                                        set_time(&mut timer, &mut subtimer, 500);
+                                        break;
+                                    }
+                                }
+                            },
+                            Err(_) => {
+                                delay(15000);
+                                let mut regifg = timer.readctl_reg().unwrap();
+                                print_u16(&mut tx, regifg);
+                                regifg = subtimer.read().unwrap();
+                                print_u16(&mut tx, regifg);
+                            },
                         }
                     }
                 }
@@ -343,6 +385,7 @@ fn main() -> ! {
                     }) as u8
                 }
             };
+            tx.write(ch);
 
             if ch == 0x41u8 {
                 txpkt[0] = 0x41u8;

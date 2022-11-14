@@ -93,6 +93,8 @@ pub trait TimerB: Steal {
     fn tbie_clr(&self);
 
     fn tbxiv_rd(&self) -> u16;
+    fn tbxctl_rd(&self) -> u16;
+    fn tbxr_rd(&self) -> u16;
 }
 
 pub trait CCRn<C>: Steal {
@@ -165,7 +167,7 @@ macro_rules! ccrn_impl {
             fn ccifg_rd(&self) -> bool {
                 self.$tbxcctln.read().ccifg().bit()
             }
-
+            
             #[inline(always)]
             fn ccifg_clr(&self) {
                 // unsafe { self.$tbxcctln.clear_bits(|w| w.ccifg().clear_bit()) };
@@ -202,7 +204,7 @@ macro_rules! ccrn_impl {
 }
 
 macro_rules! timera_impl {
-    ($TBx:ident, $tbx:ident, $tbxctl:ident, $tbxex:ident, $tbxiv:ident, $([$CCRn:ident, $tbxcctln:ident, $tbxccrn:ident]),*) => {
+    ($TBx:ident, $tbx:ident, $tbxctl:ident, $tbxex:ident, $tbxiv:ident, $tbxr:ident, $([$CCRn:ident, $tbxcctln:ident, $tbxccrn:ident]),*) => {
         impl Steal for pac::$TBx {
             #[inline(always)]
             unsafe fn steal() -> Self {
@@ -249,8 +251,11 @@ macro_rules! timera_impl {
 
             #[inline(always)]
             fn config_clock(&self, tbssel: Tbssel, div: TimerDiv) {
-                self.$tbxctl
-                    .write(|w| w.tassel().bits(tbssel as u8).id().bits(div as u8));
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                        .tassel().bits(tbssel as u8)
+                        .id().bits(div as u8)
+                });
             }
 
             #[inline(always)]
@@ -262,8 +267,9 @@ macro_rules! timera_impl {
             #[inline(always)]
             fn stop(&self) {
                 // unsafe { self.$tbxctl.clear_bits(|w| w.mc().stop()) };
-                self.$tbxctl.write(|w|{
-                    w.mc().mc_0()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .mc().mc_0()
                 });
             }
 
@@ -276,34 +282,47 @@ macro_rules! timera_impl {
             fn tbifg_rd(&self) -> bool {
                 self.$tbxctl.read().taifg().bit()
             }
-
+            
             #[inline(always)]
             fn tbifg_clr(&self) {
                 // unsafe { self.$tbxctl.clear_bits(|w| w.tbifg().clear_bit()) };
-                self.$tbxctl.write(|w|{
-                    w.taifg().clear_bit()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .taifg().clear_bit()
                 });
             }
 
             #[inline(always)]
             fn tbie_set(&self) {
                 // unsafe { self.$tbxctl.set_bits(|w| w.tbie().set_bit()) };
-                self.$tbxctl.write(|w|{
-                    w.taie().set_bit()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .taie().set_bit()
                 });
             }
 
             #[inline(always)]
             fn tbie_clr(&self) {
                 // unsafe { self.$tbxctl.clear_bits(|w| w.tbie().clear_bit()) };
-                self.$tbxctl.write(|w|{
-                    w.taie().clear_bit()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .taie().clear_bit()
                 });
             }
 
             #[inline(always)]
             fn tbxiv_rd(&self) -> u16 {
                 self.$tbxiv.read().bits()
+            }
+            
+            #[inline(always)]
+            fn tbxctl_rd(&self) -> u16 {
+                self.$tbxctl.read().bits()
+            }
+ 
+            #[inline(always)]
+            fn tbxr_rd(&self) -> u16 {
+                self.$tbxr.read().bits()
             }
         }
 
@@ -312,7 +331,7 @@ macro_rules! timera_impl {
 }
 
 macro_rules! timerb_impl {
-    ($TBx:ident, $tbx:ident, $tbxctl:ident, $tbxex:ident, $tbxiv:ident, $([$CCRn:ident, $tbxcctln:ident, $tbxccrn:ident]),*) => {
+    ($TBx:ident, $tbx:ident, $tbxctl:ident, $tbxex:ident, $tbxiv:ident, $tbxr:ident, $([$CCRn:ident, $tbxcctln:ident, $tbxccrn:ident]),*) => {
         impl Steal for pac::$TBx {
             #[inline(always)]
             unsafe fn steal() -> Self {
@@ -359,8 +378,11 @@ macro_rules! timerb_impl {
 
             #[inline(always)]
             fn config_clock(&self, tbssel: Tbssel, div: TimerDiv) {
-                self.$tbxctl
-                    .write(|w| w.tbssel().bits(tbssel as u8).id().bits(div as u8));
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                        .tbssel().bits(tbssel as u8)
+                        .id().bits(div as u8)
+                });
             }
 
             #[inline(always)]
@@ -372,8 +394,9 @@ macro_rules! timerb_impl {
             #[inline(always)]
             fn stop(&self) {
                 // unsafe { self.$tbxctl.clear_bits(|w| w.mc().stop()) };
-                self.$tbxctl.write(|w|{
-                    w.mc().mc_0()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .mc().mc_0()
                 });
             }
 
@@ -386,34 +409,47 @@ macro_rules! timerb_impl {
             fn tbifg_rd(&self) -> bool {
                 self.$tbxctl.read().tbifg().bit()
             }
-
+            
             #[inline(always)]
             fn tbifg_clr(&self) {
                 // unsafe { self.$tbxctl.clear_bits(|w| w.tbifg().clear_bit()) };
-                self.$tbxctl.write(|w|{
-                    w.tbifg().clear_bit()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .tbifg().clear_bit()
                 });
             }
 
             #[inline(always)]
             fn tbie_set(&self) {
                 // unsafe { self.$tbxctl.set_bits(|w| w.tbie().set_bit()) };
-                self.$tbxctl.write(|w|{
-                    w.tbie().set_bit()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .tbie().set_bit()
                 });
             }
 
             #[inline(always)]
             fn tbie_clr(&self) {
                 // unsafe { self.$tbxctl.clear_bits(|w| w.tbie().clear_bit()) };
-                self.$tbxctl.write(|w|{
-                    w.tbie().clear_bit()
+                self.$tbxctl.modify(|r, w| { 
+                    unsafe { w.bits(r.bits()) }
+                    .tbie().clear_bit()
                 });
             }
 
             #[inline(always)]
             fn tbxiv_rd(&self) -> u16 {
                 self.$tbxiv.read().bits()
+            }
+            
+            #[inline(always)]
+            fn tbxctl_rd(&self) -> u16 {
+                self.$tbxctl.read().bits()
+            }
+ 
+            #[inline(always)]
+            fn tbxr_rd(&self) -> u16 {
+                self.$tbxr.read().bits()
             }
         }
 
@@ -427,6 +463,7 @@ timera_impl!(
     ta0ctl,
     ta0ex0,
     ta0iv,
+    ta0r,
     [CCR0, ta0cctl0, ta0ccr0],
     [CCR1, ta0cctl1, ta0ccr1],
     [CCR2, ta0cctl2, ta0ccr2]
@@ -438,6 +475,7 @@ timera_impl!(
     ta1ctl,
     ta1ex0,
     ta1iv,
+    ta1r,
     [CCR0, ta1cctl0, ta1ccr0],
     [CCR1, ta1cctl1, ta1ccr1],
     [CCR2, ta1cctl2, ta1ccr2]
@@ -449,6 +487,7 @@ timera_impl!(
     ta2ctl,
     ta2ex0,
     ta2iv,
+    ta2r,
     [CCR0, ta2cctl0, ta2ccr0],
     [CCR1, ta2cctl1, ta2ccr1]
 );
@@ -459,6 +498,7 @@ timera_impl!(
     ta3ctl,
     ta3ex0,
     ta3iv,
+    ta3r,
     [CCR0, ta3cctl0, ta3ccr0],
     [CCR1, ta3cctl1, ta3ccr1]
 );
@@ -482,6 +522,7 @@ timerb_impl!(
     tb0ctl,
     tb0ex0,
     tb0iv,
+    tb0r,
     [CCR0, tb0cctl0, tb0ccr0],
     [CCR1, tb0cctl1, tb0ccr1],
     [CCR2, tb0cctl2, tb0ccr2],
