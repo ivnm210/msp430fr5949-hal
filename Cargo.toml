@@ -12,7 +12,7 @@ documentation = "https://docs.rs/msp430fr5949-hal"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-msp430 = "0.3.0"
+msp430 = "0.4.0"
 # msp430 = "0.2.0"
 nb = "1.0.0"
 display-interface = "0.4.1"
@@ -31,14 +31,17 @@ version = "0.2.7"
 features = ["unproven"]
 
 [dependencies.msp430fr5949]
-features = ["rt"]
+features = ["rt", "critical-section"]
 version="0.1.0"
 path="../msp430fr5949"
 
 [dev-dependencies]
+
 panic-msp430 = "0.3.0"
 panic-never = "0.1.0"
-msp430-rt = "0.3.0"
+msp430-rt = "0.4.0"
+critical-section = "1.0.0"
+msp430 = { version = "0.4.0", features = ["critical-section-single-core"]}
 # msp430-rt = "0.2.0"
 
 [dependencies.embedded-nrf24l01]

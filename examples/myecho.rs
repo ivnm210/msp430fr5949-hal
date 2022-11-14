@@ -2,12 +2,13 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use core::cell::RefCell;
+use core::cell::UnsafeCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430::asm;
-use msp430::interrupt::{enable as enable_int, free, Mutex};
+use msp430::interrupt::{enable as enable_int, Mutex};
 use msp430_rt::entry;
+use critical_section::with;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
@@ -20,7 +21,7 @@ use msp430fr5949_hal::{
 // #[cfg(debug_assertions)]
 use panic_msp430 as _;
 
-static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
+static BLUE_LED: Mutex<UnsafeCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(UnsafeCell::new(None));
 
 fn delay(n: u32) {
     let mut i = 0;
@@ -311,7 +312,9 @@ fn main() -> ! {
         p3_4.set_low().unwrap();
         p3_6.set_high().unwrap();
 
-        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
+        with(|cs| {
+            unsafe { *BLUE_LED.borrow(cs).get() = Some(p3_3)}
+        });
 
         // let p2_3 = p2.pin3;
         // let mut p6_6 = p6.pin6;
@@ -356,7 +359,7 @@ fn main() -> ! {
             //     p3_3.set_high().unwrap();
             // }
             count = count + 1;
-            free(|_cs| {
+            with(|_cs| {
                 uart.putc('.');
             });
             // let ch = match block!(rx.read()) {
@@ -379,22 +382,24 @@ fn main() -> ! {
 
 #[interrupt]
 fn USCI_A1() {
-    free(|cs| {
+    with(|cs| {
         let p = unsafe { msp430fr5949::Peripherals::steal() };
         let uart1 = p.USCI_A1_UART_MODE;
         if uart1.uca1ifg.read().ucrxifg() == true {
             let _ch = uart1.uca1rxbuf.read();
         }
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+        if let Some(blue_led) = unsafe {
+            &mut *BLUE_LED.borrow(cs).get()
+        } .as_mut() {
             blue_led.set_low().ok();
             blue_led.set_high().ok();
-        })
+        }
     });
 }
 
 #[interrupt]
 fn WDT() {
-    free(|_cs| {
+    with(|_cs| {
         //BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
         //blue_led.set_low().ok();
         //blue_led.set_high().ok();

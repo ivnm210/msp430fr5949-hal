@@ -4,8 +4,9 @@
 
 use core::cell::UnsafeCell;
 use embedded_hal::digital::v2::ToggleableOutputPin;
-use msp430::interrupt::{enable, free, Mutex};
+use msp430::interrupt::{enable, Mutex};
 use msp430_rt::entry;
+use critical_section::with;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     capture::{
@@ -62,8 +63,6 @@ fn main() -> ! {
         })
         .split(&pmm);
 
-        free(|cs| unsafe { *RED_LED.borrow(*cs).get() = Some(red_led) });
-
         let captures = CaptureParts7::config(periph.TIMER_0_B7, TimerConfig::aclk(&aclk))
             .config_cap3_input_A(p3.pin4.to_alternate1())
             .config_cap3_trigger(CapTrigger::FallingEdge)
@@ -73,9 +72,10 @@ fn main() -> ! {
         let vectors = captures.tbxiv;
 
         setup_capture(&mut capture);
-        free(|cs| {
-            unsafe { *CAPTURE.borrow(*cs).get() = Some(capture) }
-            unsafe { *VECTOR.borrow(*cs).get() = Some(vectors) }
+        with(|cs| {
+            unsafe { *RED_LED.borrow(cs).get() = Some(red_led)}
+            unsafe { *CAPTURE.borrow(cs).get() = Some(capture) }
+            unsafe { *VECTOR.borrow(cs).get() = Some(vectors) }
         });
         unsafe { enable() };
     }
@@ -89,13 +89,13 @@ fn setup_capture<T: CapCmp<C>, C>(capture: &mut Capture<T, C>) {
 
 #[interrupt]
 fn TIMER0_B1() {
-    free(|cs| {
-        if let Some(vector) = unsafe { &mut *VECTOR.borrow(*cs).get() }.as_mut() {
-            if let Some(capture) = unsafe { &mut *CAPTURE.borrow(*cs).get() }.as_mut() {
+    with(|cs| {
+        if let Some(vector) = unsafe { &mut *VECTOR.borrow(cs).get() }.as_mut() {
+            if let Some(capture) = unsafe { &mut *CAPTURE.borrow(cs).get() }.as_mut() {
                 match vector.interrupt_vector() {
                     CaptureVector::Capture3(cap) => {
                         if cap.interrupt_capture(capture).is_ok() {
-                            if let Some(led) = unsafe { &mut *RED_LED.borrow(*cs).get() }.as_mut() {
+                            if let Some(led) = unsafe { &mut *RED_LED.borrow(cs).get() }.as_mut() {
                                 led.toggle().void_unwrap();
                             }
                         }

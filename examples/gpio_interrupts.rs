@@ -6,10 +6,11 @@ extern crate msp430fr5949;
 
 use msp430fr5949::interrupt;
 
-use core::cell::RefCell;
+use core::cell::UnsafeCell;
 use embedded_hal::digital::v2::*;
 use embedded_hal::timer::*;
-use msp430::interrupt::{enable as enable_int, free, Mutex};
+use msp430::interrupt::{enable as enable_int, Mutex};
+use critical_section::with;
 use msp430_rt::entry;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
@@ -21,8 +22,8 @@ use msp430fr5949_hal::{
 use nb::block;
 use panic_msp430 as _;
 
-static RED_LED: Mutex<RefCell<Option<Pin<P1, Pin0, Output>>>> = Mutex::new(RefCell::new(None));
-static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
+static RED_LED: Mutex<UnsafeCell<Option<Pin<P1, Pin0, Output>>>> = Mutex::new(UnsafeCell::new(None));
+static P1IV: Mutex<UnsafeCell<Option<PxIV<P1>>>> = Mutex::new(UnsafeCell::new(None));
 
 // Red LED should blink 2 seconds on, 2 seconds off
 // Both green and red LEDs should blink when P2.3 LED is pressed
@@ -60,8 +61,10 @@ fn main() -> ! {
     let mut green_led = p3.pin4;
     let p1iv = p1.pxiv;
 
-    free(|cs| *RED_LED.borrow(*cs).borrow_mut() = Some(red_led));
-    free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
+    with(|cs| {
+        unsafe { *RED_LED.borrow(cs).get() = Some(red_led)}
+        unsafe { *P1IV.borrow(cs).get() = Some(p1iv)}
+    });
 
     wdt.set_aclk(&aclk)
         .enable_interrupts()
@@ -81,27 +84,29 @@ fn main() -> ! {
 
 #[interrupt]
 fn PORT1() {
-    free(|cs| {
-        RED_LED.borrow(*cs).borrow_mut().as_mut().map(|red_led| {
-            match P1IV
-                .borrow(*cs)
-                .borrow_mut()
-                .as_mut()
-                .unwrap()
-                .get_interrupt_vector()
-            {
-                GpioVector::Pin7Isr => red_led.toggle().ok(),
-                _ => panic!(),
+    with(|cs| {
+        if let Some(vector) = unsafe {&mut *P1IV.borrow(cs).get()}.as_mut() {
+            match vector.get_interrupt_vector() {
+                GpioVector::Pin2Isr => {
+                    if let Some(red_led) = unsafe {
+                        &mut *RED_LED.borrow(cs).get()
+                    } .as_mut() {
+                        red_led.toggle().ok();
+                    }
+                }
+                _ => {},
             }
-        })
+        }
     });
 }
 
 #[interrupt]
 fn WDT() {
-    free(|cs| {
-        RED_LED.borrow(*cs).borrow_mut().as_mut().map(|red_led| {
+    with(|cs| {
+        if let Some(red_led) = unsafe {
+            &mut *RED_LED.borrow(cs).get()
+        } .as_mut() {
             red_led.toggle().ok();
-        })
+        }
     });
 }

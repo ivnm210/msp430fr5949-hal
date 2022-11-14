@@ -38,7 +38,7 @@ pub mod gpio;
 pub mod pmm;
 pub mod prelude;
 pub mod pwm;
-//pub mod rtc;
+pub mod rtc;
 pub mod serial;
 pub mod spi;
 pub mod timer;

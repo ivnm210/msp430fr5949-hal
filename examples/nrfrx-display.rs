@@ -2,21 +2,24 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use core::cell::RefCell;
+use core::cell::UnsafeCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430::asm;
-use msp430::interrupt::{enable as enable_int, free, Mutex};
+use critical_section::with;
+use msp430::interrupt::{enable as enable_int, Mutex};
 use msp430_rt::entry;
 use msp430fr5949::interrupt;
+use msp430fr5949_hal::gpio::{Input, Pulldown};
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv, SmclkSel},
     delay::Delay,
     fram::Fram,
-    gpio::{Batch, GpioVector, Output, Pin, Pin3, PxIV, P1, P2, P3},
+    gpio::{Batch, GpioVector, Output, Pin, Pin2, Pin3, PxIV, P1, P2, P3},
     pmm::Pmm,
     serial::*,
     spi::*,
+    timer::*,
     watchdog::Wdt,
 };
 use nb::block;
@@ -45,9 +48,11 @@ use st7735_lcd::Orientation;
 // #[cfg(debug_assertions)]
 //use panic_msp430 as _;
 
-static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
-static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
-static MYBOOL: Mutex<RefCell<Option<mbool>>> = Mutex::new(RefCell::new(None));
+static BLUE_LED: Mutex<UnsafeCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(UnsafeCell::new(None));
+static P1IV: Mutex<UnsafeCell<Option<PxIV<P1>>>> = Mutex::new(UnsafeCell::new(None));
+static INT_PIN: Mutex<UnsafeCell<Option<Pin<P1, Pin2, Input<Pulldown>>>>> =
+    Mutex::new(UnsafeCell::new(None));
+static MYBOOL: Mutex<UnsafeCell<Option<Mbool>>> = Mutex::new(UnsafeCell::new(None));
 
 #[derive(Clone, Copy)]
 enum RadioState {
@@ -56,13 +61,13 @@ enum RadioState {
     RadioTx,
 }
 
-struct mbool {
+struct Mbool {
     bl: bool,
 }
 
-impl mbool {
+impl Mbool {
     fn new(bl: bool) -> Self {
-        mbool { bl }
+        Mbool { bl }
     }
     fn set(&mut self) {
         self.bl = true;
@@ -130,6 +135,16 @@ fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
 //     cnt
 // }
 
+fn set_time<T: TimerPeriph + CapCmp<C>, C>(
+    timer: &mut Timer<T>,
+    subtimer: &mut SubTimer<T, C>,
+    delay: u16,
+) {
+    timer.start(delay + delay);
+    subtimer.set_count(delay);
+}
+
+
 // #[cfg(not(debug_assertions))]
 // use panic_never as _;
 
@@ -167,7 +182,6 @@ fn main() -> ! {
         })
         .split(&pmm);
 
-        delay.delay_us(1000u32);
         // let (mut tx, mut rx) = SerialConfig::new(
         // periph.USCI_A1_UART_MODE,
         // BitOrder::LsbFirst,
@@ -225,11 +239,22 @@ fn main() -> ! {
         p3_3.set_low().unwrap();
         p3_3.set_high().unwrap();
         let p1iv = p1.pxiv;
+        let parts = TimerParts3::new(
+            periph.TIMER_0_A3,
+            TimerConfig::smclk(&smclk).clk_div(TimerDiv::_2, TimerExDiv::_5),
+        );
+        let mut timer = parts.timer;
+        let mut subtimer = parts.subtimer2;
 
-        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
-        free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
-        let mybool = mbool::new(true);
-        free(|cs| *MYBOOL.borrow(*cs).borrow_mut() = Some(mybool));
+        set_time(&mut timer, &mut subtimer, 12500);
+
+        let mybool = Mbool::new(false);
+        with(|cs| {
+            unsafe { *BLUE_LED.borrow(cs).get() = Some(p3_3)}
+            unsafe { *INT_PIN.borrow(cs).get() = Some(p1_2)}
+            unsafe { *P1IV.borrow(cs).get() = Some(p1iv)}
+            unsafe { *MYBOOL.borrow(cs).get() = Some(mybool)}
+        });
 
         let mut count = 0u8;
         display.init(&mut delay).unwrap();
@@ -323,45 +348,34 @@ fn main() -> ! {
                     let mut nrf24rx = nrf24.rx().unwrap();
                     let mut cnt = 0u16;
                     loop {
-                        if let Ok(Some(pipe)) = nrf24rx.can_read() {
-                            if let Ok(pl) = nrf24rx.read() {
-                                if pl.len() > 0 {
-                                    // pktcnt = print_rec_pkt(&mut tx, pl.as_ref(), pl.len() - 2);
-                                    rpktcnt =
-                                        ((pl.as_ref()[30] as u16) << 8) + (pl.as_ref()[31] as u16);
-                                    txpkt[30] = ((rpktcnt >> 8) & 0xFF) as u8;
-                                    txpkt[31] = (rpktcnt & 0xff) as u8;
-                                    if pl.as_ref()[0] == 0x41u8 {
-                                        on = true;
+                        match subtimer.wait() {
+                            Ok(_) => {
+                                // timeout
+                            },
+                            Err(_) =>
+                                if let Ok(Some(pipe)) = nrf24rx.can_read() {
+                                    if let Ok(pl) = nrf24rx.read() {
+                                        if pl.len() > 0 {
+                                            // pktcnt = print_rec_pkt(&mut tx, pl.as_ref(), pl.len() - 2);
+                                            rpktcnt =
+                                                ((pl.as_ref()[30] as u16) << 8) + (pl.as_ref()[31] as u16);
+                                            txpkt[30] = ((rpktcnt >> 8) & 0xFF) as u8;
+                                            txpkt[31] = (rpktcnt & 0xff) as u8;
+                                            if pl.as_ref()[0] == 0x41u8 {
+                                                on = true;
+                                            }
+                                            if pl.as_ref()[0] == 0x61u8 {
+                                                on = false;
+                                            }
+                                            nextradiost = RadioState::RadioTx;
+                                            set_time(&mut timer, &mut subtimer, 12500);
+                                            break;
+                                        }
                                     }
-                                    if pl.as_ref()[0] == 0x61u8 {
-                                        on = false;
-                                    }
-                                    nextradiost = RadioState::RadioTx;
-                                    break;
                                 }
-                            }
                         }
-                        cnt = cnt + 1;
-                        if (cnt % 10) == 0 {
-                            // block!(tx.write('.' as u8)).unwrap();
-                            // if cnt % 80 == 0 {
-                            // block!(tx.write('\r' as u8)).unwrap();
-                            // block!(tx.write('\n' as u8)).unwrap();
-                            // }
-                            // if cnt == 1000 {
-                            // block!(tx.write('+' as u8)).unwrap();
-                            // block!(tx.write('\r' as u8)).unwrap();
-                            // block!(tx.write('\n' as u8)).unwrap();
-                            // break;
-                            // }
-                        }
-                        //progress(&mut tx, cnt);
-                        // progress2(&mut tx, 'R', cnt);
                     }
-                    //nrf24rx.flush_rx().unwrap();
                     nrf24 = nrf24rx.standby();
-                    delay.delay_us(100u32);
                 }
                 RadioState::RadioTx => {
                     let bytes = myprint_u16_as_hex(rpktcnt);
@@ -405,58 +419,59 @@ fn main() -> ! {
 
 #[interrupt]
 fn PORT1() {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-            match P1IV
-                .borrow(*cs)
-                .borrow_mut()
-                .as_mut()
-                .unwrap()
-                .get_interrupt_vector()
-            {
+    with(|cs| {
+        if let Some(vector) = unsafe {&mut *P1IV.borrow(cs).get()}.as_mut() {
+            match vector.get_interrupt_vector() {
                 GpioVector::Pin2Isr => {
-                    blue_led.set_low().ok();
-                    blue_led.set_high().ok()
+                    if let Some(blue_led) = unsafe {
+                        &mut *BLUE_LED.borrow(cs).get()
+                    } .as_mut() {
+                        blue_led.set_low().ok();
+                        blue_led.set_high().ok();
+                    }
                 }
-                _ => panic!(),
+                _ => {},
             }
-        });
-
+        }
+        if let Some(int_pin) = unsafe {
+            &mut *INT_PIN.borrow(cs).get()
+        }.as_mut() {
+            int_pin.clear_ifg();
+        }
         // MYBOOL.borrow(*cs).borrow_mut().as_mut().map(|mybool| {
-        // mybool.set();
+        //     *mybool = true;
         // });
     });
 }
 
 #[interrupt]
 fn WDT() {
-    free(|cs| {
-        // BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-        //     blue_led.set_low().ok();
-        //     blue_led.set_high().ok();
-        // });
+    with(|cs| {
+        if let Some(blue_led) = unsafe {
+            &mut *BLUE_LED.borrow(cs).get()
+        } .as_mut() {
+            blue_led.set_low().ok();
+            blue_led.set_high().ok();
+        }
         // MYBOOL.borrow(*cs).borrow_mut().as_mut().map(|mybool| {
         //     mybool.set();
         // });
     });
 }
 
-// #[panic_handler]
-// fn panic(info: &PanicInfo) -> ! {
-// free(|cs| {
-// BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-// blue_led.set_low().ok();
-// });
-// });
-// loop {}
-// }
-
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+    with(|cs| {
+        if let Some(blue_led) = unsafe {
+            &mut *BLUE_LED.borrow(cs).get()
+        } .as_mut() {
             blue_led.set_low().ok();
-        });
+        }
     });
-    loop {}
+    panic!();
+}
+
+#[no_mangle]
+extern "C" fn abort() -> ! {
+    panic!();
 }
