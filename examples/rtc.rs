@@ -10,7 +10,7 @@ use msp430fr5949_hal::{
     fram::Fram,
     gpio::{Batch, GpioVector, Output, Pin, Pin2, Pin3, PxIV, P1, P2, P3},
     pmm::Pmm,
-    rtc::{Rtc},
+    rtc::Rtc,
     watchdog::Wdt,
 };
 use panic_msp430 as _;
