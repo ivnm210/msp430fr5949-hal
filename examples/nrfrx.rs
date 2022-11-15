@@ -201,7 +201,7 @@ fn main() -> ! {
 
         let pmm = Pmm::new(periph.PMM);
 
-        delay(100000);
+//        delay(100000);
 
         let p3 = Batch::new(P3 {
             port: periph.PORT_3_4,
@@ -268,7 +268,7 @@ fn main() -> ! {
         let mut regctl = timer.readctl_reg().unwrap();
         print_u16(&mut tx, regctl);
 
-        set_time(&mut timer, &mut subtimer, 500);
+        set_time(&mut timer, &mut subtimer, 12500);
         let mut regctl = timer.readctl_reg().unwrap();
         print_u16(&mut tx, regctl);
 
@@ -376,7 +376,7 @@ fn main() -> ! {
                                     }
                                 }
                                 //progress(&mut tx, cnt);
-                                progress2(&mut tx, 'R', cnt);
+                                progress2(&mut tx, 'R', pktcnt);
                             }
                         }
                     }

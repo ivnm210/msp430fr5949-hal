@@ -363,7 +363,7 @@ fn main() -> ! {
                                         nrf24tx.clear_interrupts().unwrap();
                                         nextradiost = RadioState::RadioRx;
                                         nrf24 = nrf24tx.standby().unwrap();
-                                        set_time(&mut timer, &mut subtimer, 1500);
+                                        set_time(&mut timer, &mut subtimer, 12500);
                                         break;
                                     }
                                 }
