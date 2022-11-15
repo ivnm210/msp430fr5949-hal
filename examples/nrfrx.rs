@@ -268,7 +268,7 @@ fn main() -> ! {
         let mut regctl = timer.readctl_reg().unwrap();
         print_u16(&mut tx, regctl);
 
-        set_time(&mut timer, &mut subtimer, 12500);
+        set_time(&mut timer, &mut subtimer, 35000);
         let mut regctl = timer.readctl_reg().unwrap();
         print_u16(&mut tx, regctl);
 
@@ -367,16 +367,16 @@ fn main() -> ! {
                                         }
                                     }
                                 }
-                                cnt = cnt + 1;
-                                if (cnt % 10) == 0 {
-                                    block!(tx.write('.' as u8)).unwrap();
-                                    if cnt % 80 == 0 {
-                                        block!(tx.write('\r' as u8)).unwrap();
-                                        block!(tx.write('\n' as u8)).unwrap();
-                                    }
-                                }
-                                //progress(&mut tx, cnt);
-                                progress2(&mut tx, 'R', pktcnt);
+                                // cnt = cnt + 1;
+                                // if (cnt % 10) == 0 {
+                                //     block!(tx.write('.' as u8)).unwrap();
+                                //     if cnt % 80 == 0 {
+                                //         block!(tx.write('\r' as u8)).unwrap();
+                                //         block!(tx.write('\n' as u8)).unwrap();
+                                //     }
+                                // }
+                                // //progress(&mut tx, cnt);
+                                // progress2(&mut tx, 'R', pktcnt);
                             }
                         }
                     }
