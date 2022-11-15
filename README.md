@@ -18,7 +18,7 @@ at your option.
 - not all examples work yet
 
 ## Verified:
-- gpio, spi, timers, capture, compare, pwm and uart work fine
+- gpio, spi, timers, capture, compare, pwm, rtc and uart work fine
 - nrfrx - is a NRF24 radio server
 - nrftx - is a NRF24 client
 - display - is a ST7735 LCD display test on SPI 

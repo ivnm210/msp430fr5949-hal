@@ -2,7 +2,8 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use core::cell::RefCell;
+use core::cell::UnsafeCell;
+use critical_section::with;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430::asm;
@@ -42,8 +43,8 @@ use st7735_lcd::Orientation;
 // #[cfg(debug_assertions)]
 //use panic_msp430 as _;
 
-static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
-static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
+static BLUE_LED: Mutex<UnsafeCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(UnsafeCell::new(None));
+static P1IV: Mutex<UnsafeCell<Option<PxIV<P1>>>> = Mutex::new(UnsafeCell::new(None));
 
 pub struct Delay {}
 
@@ -200,8 +201,9 @@ fn main() -> ! {
         p3_3.set_high().unwrap();
         // let p1iv = p1.pxiv;
         //
-        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
-        // free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
+        with(|cs| {
+            unsafe { *BLUE_LED.borrow(cs).get() = Some(p3_3)}
+        });
 
         display.init(&mut delay).unwrap();
         display.set_orientation(&Orientation::Landscape).unwrap();
@@ -255,7 +257,7 @@ fn main() -> ! {
 
 #[interrupt]
 fn PORT1() {
-    free(|cs| {
+    with(|cs| {
         // BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
         // match P1IV
         // .borrow(*cs)
@@ -276,7 +278,7 @@ fn PORT1() {
 
 #[interrupt]
 fn WDT() {
-    free(|cs| {
+    with(|cs| {
         // BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
         // blue_led.set_low().ok();
         // blue_led.set_high().ok();
@@ -286,10 +288,12 @@ fn WDT() {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+    with(|cs| {
+        if let Some(blue_led) = unsafe {
+            &mut *BLUE_LED.borrow(cs).get()
+        } .as_mut() {
             blue_led.set_low().ok();
-        });
+        }
     });
     loop {}
 }

@@ -69,7 +69,7 @@ fn main() -> ! {
     wdt.set_aclk(&aclk)
         .enable_interrupts()
         // .start(WdtClkPeriods::_32K);
-        .start(4);
+        .start(WdtClkPeriods::DIV19);
     pin.select_rising_edge_trigger().enable_interrupts();
     button.select_falling_edge_trigger();
 

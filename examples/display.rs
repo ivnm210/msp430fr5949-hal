@@ -8,10 +8,11 @@ extern crate alloc;
 use self::alloc::string::String;
 use alloc::fmt::format;
 use core::alloc::Layout;
-use core::cell::{RefCell, UnsafeCell};
+use core::cell::UnsafeCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
-use msp430::interrupt::{enable as enable_int, free, Mutex};
+use msp430::interrupt::{enable as enable_int, Mutex};
+use critical_section::with;
 use msp430_rt::entry;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
@@ -57,7 +58,7 @@ unsafe impl Sync for BumpPointerAlloc {}
 
 unsafe impl GlobalAlloc for BumpPointerAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        free(|_| {
+        with(|_| {
             let head = self.head.get();
             let size = layout.size();
             let align = layout.align();
@@ -96,8 +97,8 @@ fn on_oom(_layout: Layout) -> ! {
 // #[cfg(debug_assertions)]
 //use panic_msp430 as _;
 
-static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
-static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
+static BLUE_LED: Mutex<UnsafeCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(UnsafeCell::new(None));
+static P1IV: Mutex<UnsafeCell<Option<PxIV<P1>>>> = Mutex::new(UnsafeCell::new(None));
 
 static B: &[u8; 16] = b"0123456789abcdef";
 
@@ -232,9 +233,10 @@ fn main() -> ! {
         p3_3.set_high().unwrap();
         // let p1iv = p1.pxiv;
         //
-        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
-        // free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
-
+        with(|cs| {
+            unsafe { *BLUE_LED.borrow(cs).get() = Some(p3_3)}
+        });
+        
         display.init(&mut delay).unwrap();
         display.set_orientation(&Orientation::Landscape).unwrap();
         display.clear(Rgb565::BLACK).unwrap();
@@ -291,7 +293,7 @@ fn main() -> ! {
 
 #[interrupt]
 fn PORT1() {
-    free(|cs| {
+    with(|cs| {
         // BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
         // match P1IV
         // .borrow(*cs)
@@ -312,7 +314,7 @@ fn PORT1() {
 
 #[interrupt]
 fn WDT() {
-    free(|cs| {
+    with(|cs| {
         // BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
         // blue_led.set_low().ok();
         // blue_led.set_high().ok();
@@ -322,10 +324,12 @@ fn WDT() {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+    with(|cs| {
+        if let Some(blue_led) = unsafe {
+            &mut *BLUE_LED.borrow(cs).get()
+        } .as_mut() {
             blue_led.set_low().ok();
-        });
+        }
     });
     loop {}
 }

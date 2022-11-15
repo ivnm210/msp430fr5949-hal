@@ -5,7 +5,7 @@ use embedded_hal::digital::v2::*;
 use embedded_hal::prelude::*;
 use msp430_rt::entry;
 use msp430fr5949_hal::{
-    capture::{CapTrigger, CaptureParts3, OverCapture, TimerConfig},
+    capture::{CapturePin, CapTrigger, CaptureParts3, OverCapture, TimerConfig},
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
     fram::Fram,
     gpio::{Batch, P1, P2, P3, P4},
@@ -22,63 +22,67 @@ use void::ResultVoidExt;
 // since the last press. Sometimes we get 2 consecutive readings due to lack of debouncing.
 #[entry]
 fn main() -> ! {
-    let periph = msp430fr5949::Peripherals::take().unwrap();
+    if let Some(periph) = msp430fr5949::Peripherals::take() {
 
-    let mut fram = Fram::new(periph.FRAM);
-    Wdt::constrain(periph.WATCHDOG_TIMER);
+        let mut fram = Fram::new(periph.FRAM);
+        Wdt::constrain(periph.WATCHDOG_TIMER);
 
-    let pmm = Pmm::new(periph.PMM);
-    let p2 = Batch::new(P2 {
-        port: periph.PORT_1_2,
-    })
-    .split(&pmm);
-    let periph = msp430fr5969::Peripherals::take().unwrap();
-    let mut p1 = Batch::new(P1 {
-        port: periph.PORT_1_2,
-    })
-    .config_pin0(|p| p.to_output())
-    .split(&pmm);
+        let (smclk, aclk) = ClockConfig::new(periph.CS)
+            .mclk_dcoclk(DcoclkFreqSel::_16MHz, MclkDiv::DIVM_0)
+            .smclk_on(SmclkDiv::DIVS_1, DcoclkFreqSel::_16MHz)
+            .aclk_vloclk()
+            .freeze(&mut fram);
+        
+        let pmm = Pmm::new(periph.PMM);
+        
+        let p2 = Batch::new(P2 {
+            port: periph.PORT_1_2,
+        })
+        .split(&pmm);
 
-    let (smclk, aclk) = ClockConfig::new(periph.CS)
-        .mclk_dcoclk(DcoclkFreqSel::_1MHz, MclkDiv::DIVM_1)
-        .smclk_on(SmclkDiv::DIVS_1)
-        .aclk_vloclk()
-        .freeze(&mut fram);
+        let p = unsafe { msp430fr5949::Peripherals::steal() };
+        let mut p1 = Batch::new(P1 {
+            port: p.PORT_1_2,
+        })
+        .config_pin0(|p| p.to_output())
+        .split(&pmm);
 
-    let mut tx = SerialConfig::new(
-        periph.USCI_A1_UART_MODE,
-        BitOrder::LsbFirst,
-        BitCount::EightBits,
-        StopBits::OneStopBit,
-        Parity::NoParity,
-        Loopback::NoLoop,
-        9600,
-    )
-    .use_smclk(&smclk)
-    .tx_only(p2.pin5.to_alternate2());
+        let mut tx = SerialConfig::new(
+            periph.USCI_A1_UART_MODE,
+            BitOrder::LsbFirst,
+            BitCount::EightBits,
+            StopBits::OneStopBit,
+            Parity::NoParity,
+            Loopback::NoLoop,
+            9600,
+        )
+        .use_smclk(&smclk)
+        .tx_only(p2.pin5.to_alternate2());
 
-    let captures = CaptureParts3::config(periph.TIMER_0_A3, TimerConfig::aclk(&aclk))
-        .config_cap1_input_A(p1.pin6.to_alternate3())
-        .config_cap1_trigger(CapTrigger::FallingEdge)
-        .commit();
-    let mut capture = captures.cap1;
+        let captures = CaptureParts3::config(periph.TIMER_0_A3, TimerConfig::aclk(&aclk))
+            .config_cap1_input_A(p1.pin6.to_alternate3())
+            .config_cap1_trigger(CapTrigger::FallingEdge)
+            .commit();
+        let mut capture = captures.cap1;
 
-    let mut last_cap = 0;
-    loop {
-        match block!(capture.capture()) {
-            Ok(cap) => {
-                let diff = cap.wrapping_sub(last_cap);
-                last_cap = cap;
-                p1.pin0.set_high().void_unwrap();
-                print_num(&mut tx, diff);
-            }
-            Err(OverCapture(_)) => {
-                p1.pin0.set_high().void_unwrap();
-                write(&mut tx, '!');
-                write(&mut tx, '\n');
+        let mut last_cap = 0;
+        loop {
+            match block!(capture.capture()) {
+                Ok(cap) => {
+                    let diff = cap.wrapping_sub(last_cap);
+                    last_cap = cap;
+                    p1.pin0.set_high().void_unwrap();
+                    print_num(&mut tx, diff);
+                }
+                Err(OverCapture(_)) => {
+                    p1.pin0.set_high().void_unwrap();
+                    write(&mut tx, '!');
+                    write(&mut tx, '\n');
+                }
             }
         }
     }
+    loop{}
 }
 
 fn print_num<U: SerialUsci>(tx: &mut Tx<U>, num: u16) {

@@ -19,7 +19,7 @@ use msp430fr5949_hal::{
     serial::*,
     spi::*,
     timer::*,
-    watchdog::Wdt,
+    watchdog::{Wdt, WdtClkPeriods},
 };
 use nb::block;
 extern crate embedded_nrf24l01;
@@ -53,13 +53,13 @@ enum RadioState {
     RadioTx,
 }
 
-struct mbool {
+struct Mbool {
     bl: bool,
 }
 
-impl mbool {
+impl Mbool {
     fn new(bl: bool) -> Self {
-        mbool { bl }
+        Mbool { bl }
     }
     fn set(&mut self) {
         self.bl = true;
@@ -181,24 +181,6 @@ fn set_time<T: TimerPeriph + CapCmp<C>, C>(
     subtimer.set_count(delay);
 }
 
-struct Mbool {
-    bl: bool,
-}
-
-impl Mbool {
-    fn new(bl: bool) -> Self {
-        Mbool { bl }
-    }
-    fn set(&mut self) {
-        self.bl = true;
-    }
-    fn clear(&mut self) {
-        self.bl = false;
-    }
-    fn is_set(&self) -> bool {
-        self.bl
-    }
-}
 // #[cfg(not(debug_assertions))]
 // use panic_never as _;
 
@@ -328,10 +310,8 @@ fn main() -> ! {
         tx.bwrite_all(b"HELLO\n\r").ok();
 
         wdt.set_aclk(&aclk)
-            // wdt.set_smclk(&smclk)
             .enable_interrupts()
-            // .start(WdtClkPeriods::_32K);
-            .start(6);
+            .start(WdtClkPeriods::DIV9);
         unsafe { enable_int() };
 
         //

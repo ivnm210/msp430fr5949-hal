@@ -20,7 +20,7 @@ use msp430fr5949_hal::{
     serial::*,
     spi::*,
     timer::*,
-    watchdog::Wdt,
+    watchdog::{Wdt, WdtClkPeriods},
 };
 use nb::block;
 extern crate display_interface_spi;
@@ -304,10 +304,8 @@ fn main() -> ! {
         nrf24.clear_interrupts().unwrap();
 
         wdt.set_aclk(&aclk)
-            // wdt.set_smclk(&smclk)
             .enable_interrupts()
-            // .start(WdtClkPeriods::_32K);
-            .start(6);
+            .start(WdtClkPeriods::DIV15);
         unsafe { enable_int() };
 
         //

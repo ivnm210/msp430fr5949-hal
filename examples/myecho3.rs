@@ -2,14 +2,15 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use core::cell::RefCell;
+use core::cell::UnsafeCell;
 use core::fmt;
 use core::fmt::Debug;
 use embedded_hal::blocking::spi::Transfer as SpiTransfer;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430::asm;
-use msp430::interrupt::{enable as enable_int, free, Mutex};
+use msp430::interrupt::{enable as enable_int, Mutex};
+use critical_section::with;
 use msp430_rt::entry;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
@@ -19,13 +20,13 @@ use msp430fr5949_hal::{
     pmm::Pmm,
     serial::*,
     spi::*,
-    watchdog::Wdt,
+    watchdog::{Wdt, WdtClkPeriods},
 };
 
 // #[cfg(debug_assertions)]
 use panic_msp430 as _;
 
-static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
+static BLUE_LED: Mutex<UnsafeCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(UnsafeCell::new(None));
 
 fn delay(n: u32) {
     let mut i = 0;
@@ -181,7 +182,9 @@ fn main() -> ! {
         p3_4.set_low().unwrap();
         p3_6.set_high().unwrap();
 
-        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
+        with(|cs| {
+            unsafe { *BLUE_LED.borrow(cs).get() = Some(p3_3)}
+        });
 
         // let p2_3 = p2.pin3;
         // let mut p6_6 = p6.pin6;
@@ -194,10 +197,8 @@ fn main() -> ! {
         tx.bwrite_all(&output).ok();
 
         wdt.set_aclk(&aclk)
-            // wdt.set_smclk(&smclk)
             .enable_interrupts()
-            // .start(WdtClkPeriods::_32K);
-            .start(7);
+            .start(WdtClkPeriods::DIV6);
         unsafe { enable_int() };
 
         loop {
@@ -229,10 +230,12 @@ fn main() -> ! {
 
 #[interrupt]
 fn WDT() {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
+    with(|cs| {
+        if let Some(blue_led) = unsafe {
+            &mut *BLUE_LED.borrow(cs).get()
+        } .as_mut() {
             blue_led.set_low().ok();
             blue_led.set_high().ok();
-        })
+        }
     });
 }

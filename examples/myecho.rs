@@ -15,7 +15,7 @@ use msp430fr5949_hal::{
     fram::Fram,
     gpio::{Batch, Output, Pin, Pin3, P2, P3},
     pmm::Pmm,
-    watchdog::Wdt,
+    watchdog::{Wdt, WdtClkPeriods},
 };
 
 // #[cfg(debug_assertions)]
@@ -328,10 +328,8 @@ fn main() -> ! {
         //uart.putc('4');
 
         wdt.set_aclk(&aclk)
-            // wdt.set_smclk(&smclk)
             .enable_interrupts()
-            // .start(WdtClkPeriods::_32K);
-            .start(7);
+            .start(WdtClkPeriods::DIV6);
         unsafe { enable_int() };
 
         loop {

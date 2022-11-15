@@ -2,12 +2,13 @@
 #![no_std]
 #![feature(abi_msp430_interrupt)]
 
-use core::cell::RefCell;
+use core::cell::UnsafeCell;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 use msp430::asm;
-use msp430::interrupt::{free, Mutex};
+use msp430::interrupt::Mutex;
 use msp430_rt::entry;
+use critical_section::with;
 use msp430fr5949::interrupt;
 use msp430fr5949_hal::{
     clock::{ClockConfig, DcoclkFreqSel, MclkDiv, SmclkDiv},
@@ -16,7 +17,7 @@ use msp430fr5949_hal::{
     pmm::Pmm,
     serial::*,
     spi::*,
-    watchdog::Wdt,
+    watchdog::{Wdt, WdtClkPeriods},
 };
 use nb::block;
 extern crate embedded_nrf24l01;
@@ -26,9 +27,8 @@ use embedded_nrf24l01::*;
 // #[cfg(debug_assertions)]
 use panic_msp430 as _;
 
-static BLUE_LED: Mutex<RefCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(RefCell::new(None));
-static P1IV: Mutex<RefCell<Option<PxIV<P1>>>> = Mutex::new(RefCell::new(None));
-static MYBOOL: Mutex<RefCell<Option<bool>>> = Mutex::new(RefCell::new(None));
+static BLUE_LED: Mutex<UnsafeCell<Option<Pin<P3, Pin3, Output>>>> = Mutex::new(UnsafeCell::new(None));
+static P1IV: Mutex<UnsafeCell<Option<PxIV<P1>>>> = Mutex::new(UnsafeCell::new(None));
 
 fn delay(n: u32) {
     let mut i = 0;
@@ -173,10 +173,10 @@ fn main() -> ! {
         p3_6.set_high().unwrap();
         let p1iv = p1.pxiv;
 
-        free(|cs| *BLUE_LED.borrow(*cs).borrow_mut() = Some(p3_3));
-        free(|cs| *P1IV.borrow(*cs).borrow_mut() = Some(p1iv));
-        let mybool: bool = true;
-        free(|cs| *MYBOOL.borrow(*cs).borrow_mut() = Some(mybool));
+        with(|cs| {
+            unsafe { *BLUE_LED.borrow(cs).get() = Some(p3_3)}
+            unsafe { *P1IV.borrow(cs).get() = Some(p1iv)}
+        });
 
         let ce = p2.pin4.to_output();
         let csn = p3.pin0.to_output();
@@ -204,10 +204,8 @@ fn main() -> ! {
         tx.bwrite_all(b"HELLO\n\r").unwrap();
 
         wdt.set_aclk(&aclk)
-            // wdt.set_smclk(&smclk)
             .enable_interrupts()
-            // .start(WdtClkPeriods::_32K);
-            .start(0);
+            .start(WdtClkPeriods::DIV15);
         //unsafe { enable_int() };
 
         //
@@ -260,7 +258,6 @@ fn main() -> ! {
             let mut lnrf24rx = nrf24.rx().unwrap();
             delay(20_000);
             // nrf24rx = nrf24.rx().unwrap();
-            // if mybool {
             if let Ok(Some(_p_no)) = lnrf24rx.can_read() {
                 if let Ok(pl) = lnrf24rx.read() {
                     progress(&mut tx, count & 3);
@@ -281,12 +278,6 @@ fn main() -> ! {
             //     }
             // }
             nrf24 = lnrf24rx.standby();
-            //     free(|cs| {
-            //         MYBOOL.borrow(&cs).borrow_mut().as_mut().map(|mybool| {
-            //             *mybool = false;
-            //         });
-            //     });
-            // }
             // match nrf24rx.has_carrier() {
             //     Ok(t) => {
             //         if t {
@@ -354,35 +345,31 @@ fn main() -> ! {
 
 #[interrupt]
 fn PORT1() {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-            match P1IV
-                .borrow(*cs)
-                .borrow_mut()
-                .as_mut()
-                .unwrap()
-                .get_interrupt_vector()
-            {
+    with(|cs| {
+        if let Some(vector) = unsafe {&mut *P1IV.borrow(cs).get()}.as_mut() {
+            match vector.get_interrupt_vector() {
                 GpioVector::Pin2Isr => {
-                    blue_led.set_low().ok();
-                    blue_led.set_high().ok()
+                    if let Some(blue_led) = unsafe {
+                        &mut *BLUE_LED.borrow(cs).get()
+                    } .as_mut() {
+                        blue_led.set_low().ok();
+                        blue_led.set_high().ok();
+                    }
                 }
-                _ => panic!(),
+                _ => {},
             }
-        });
-
-        // MYBOOL.borrow(&cs).borrow_mut().as_mut().map(|mybool| {
-        //     *mybool = true;
-        // });
+        }
     });
 }
 
 #[interrupt]
 fn WDT() {
-    free(|cs| {
-        BLUE_LED.borrow(*cs).borrow_mut().as_mut().map(|blue_led| {
-            blue_led.set_low().ok();
-            blue_led.set_high().ok();
-        })
+    with(|cs| {
+        // if let Some(blue_led) = unsafe {
+        //     &mut *BLUE_LED.borrow(cs).get()
+        // } .as_mut() {
+        //     blue_led.set_low().ok();
+        //     blue_led.set_high().ok();
+        // }
     });
 }

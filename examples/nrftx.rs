@@ -19,7 +19,7 @@ use msp430fr5949_hal::{
     serial::*,
     spi::*,
     timer::*,
-    watchdog::Wdt,
+    watchdog::{Wdt, WdtClkPeriods},
 };
 use nb::block;
 extern crate embedded_nrf24l01;
@@ -284,10 +284,8 @@ fn main() -> ! {
         tx.bwrite_all(b"START\n\r").ok();
 
         wdt.set_aclk(&aclk)
-            // wdt.set_smclk(&smclk)
             .enable_interrupts()
-            // .start(WdtClkPeriods::_32K);
-            .start(0);
+            .start(WdtClkPeriods::DIV15);
         //unsafe { enable_int() };
 
         //
