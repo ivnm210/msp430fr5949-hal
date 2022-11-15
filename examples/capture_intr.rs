@@ -21,11 +21,11 @@ use msp430fr5949_hal::{
 };
 use void::ResultVoidExt;
 
-#[cfg(debug_assertions)]
+// #[cfg(debug_assertions)]
 use panic_msp430 as _;
 
-#[cfg(not(debug_assertions))]
-use panic_never as _;
+// #[cfg(not(debug_assertions))]
+// use panic_never as _;
 
 static CAPTURE: Mutex<UnsafeCell<Option<Capture<msp430fr5949::TIMER_0_B7, CCR3>>>> =
     Mutex::new(UnsafeCell::new(None));
