@@ -244,12 +244,12 @@ fn main() -> ! {
         );
         let mut timer = parts.timer;
         let mut subtimer = parts.subtimer2;
-        let mut regctl = timer.readctl_reg().unwrap();
-        print_u16(&mut tx, regctl);
+        // let mut regctl = timer.readctl_reg().unwrap();
+        // print_u16(&mut tx, regctl);
 
         set_time(&mut timer, &mut subtimer, 1500);
-        let mut regctl = timer.readctl_reg().unwrap();
-        print_u16(&mut tx, regctl);
+        // let mut regctl = timer.readctl_reg().unwrap();
+        // print_u16(&mut tx, regctl);
 
         let mybool = Mbool::new(false);
         with(|cs| {
@@ -342,7 +342,8 @@ fn main() -> ! {
                                             pktcnt = pktcnt + 1;
                                             prepare_pkt(&mut txpkt, pktcnt);
                                             nextradiost = RadioState::RadioTx;
-                                            set_time(&mut timer, &mut subtimer, 12500);
+                                            // set_time(&mut timer, &mut subtimer, 12500);
+                                            set_time(&mut timer, &mut subtimer, 35000);
                                             break;
                                         }
                                     }
@@ -367,7 +368,7 @@ fn main() -> ! {
                                         nrf24tx.clear_interrupts().unwrap();
                                         nextradiost = RadioState::RadioRx;
                                         nrf24 = nrf24tx.standby().unwrap();
-                                        set_time(&mut timer, &mut subtimer, 12500);
+                                        set_time(&mut timer, &mut subtimer, 55000);
                                         break;
                                     }
                                 }

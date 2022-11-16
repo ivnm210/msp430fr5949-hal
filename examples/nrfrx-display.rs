@@ -405,12 +405,26 @@ fn main() -> ! {
                     nrf24 = nrf24rx.standby();
                 }
                 RadioState::RadioTx => {
+                    let mut nrf24tx = nrf24.tx().unwrap();
+                    loop {
+                        if let Ok(test) = nrf24tx.can_send() {
+                            if test {
+                                //            print_snd_pkt(&mut tx, &txpkt, txpkt.len()-2);
+                                nrf24tx.send(&txpkt).unwrap();
+                                nrf24tx.wait_empty().unwrap();
+                                nrf24tx.clear_interrupts().unwrap();
+                                nextradiost = RadioState::RadioRx;
+                                nrf24 = nrf24tx.standby().unwrap();
+                                break;
+                            }
+                        }
+                    }
                     let mut bytes = [0u8; 5];
                     for (place,data) in bytes[1..=4].iter_mut().zip(myprint_u16_as_hex(rpktcnt).iter()) {
                         *place = *data;
                     }
                     Rectangle::new(
-                        Point::new(0, 34),
+                        Point::new(0, 46),
                         Size {
                             width: 30,
                             height: 12,
@@ -426,23 +440,9 @@ fn main() -> ! {
                     }
 
                     let output = core::str::from_utf8(&bytes).unwrap();
-                    Text::with_baseline(&output, Point::new(0, 34), text_style, Baseline::Top)
+                    Text::with_baseline(&output, Point::new(0, 46), text_style, Baseline::Top)
                         .draw(&mut display.color_converted())
                         .unwrap();
-                    let mut nrf24tx = nrf24.tx().unwrap();
-                    loop {
-                        if let Ok(test) = nrf24tx.can_send() {
-                            if test {
-                                //            print_snd_pkt(&mut tx, &txpkt, txpkt.len()-2);
-                                nrf24tx.send(&txpkt).unwrap();
-                                nrf24tx.wait_empty().unwrap();
-                                nrf24tx.clear_interrupts().unwrap();
-                                nextradiost = RadioState::RadioRx;
-                                nrf24 = nrf24tx.standby().unwrap();
-                                break;
-                            }
-                        }
-                    }
                 }
                 RadioState::RadioStandby => {}
             }
