@@ -88,17 +88,20 @@ fn prepare_pkt(pkt: &mut [u8; 32], cnt: u16) {
 static B: &[u8; 16] = b"0123456789abcdef";
 
 fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
-    let b0 = B[(val / 16) as usize];
-    let b1 = B[(val % 16) as usize];
-    [b0, b1]
+    let mut b = [0u8; 2];
+    for i in 0..=1 {
+        b[i] = B[((val >> ((1 - i)*4)) & 0xF) as usize];
+    }
+    b
 }
 fn myprint_u16_as_hex(val: u16) -> [u8; 4] {
-    let b0 = B[((val / 32) / 16) as usize];
-    let b1 = B[((val / 32) % 16) as usize];
-    let b2 = B[((val / 16) % 16) as usize];
-    let b3 = B[(val % 16) as usize];
-    [b0, b1, b2, b3]
+    let mut b = [0u8; 4];
+    for i in 0..=3 {
+        b[i] = B[((val >> ((3 - i)*4)) & 0xF) as usize];
+    }
+    b
 }
+
 fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
     const B: &[u8; 10] = b"0123456789";
     let b0 = B[(val / 100) as usize];
@@ -140,7 +143,11 @@ fn set_time<T: TimerPeriph + CapCmp<C>, C>(
     subtimer: &mut SubTimer<T, C>,
     delay: u16,
 ) {
-    timer.start(delay + delay);
+    if delay < 32768u16 {
+        timer.start(delay + delay);
+    } else {
+        timer.start(65535u16);
+    }
     subtimer.set_count(delay);
 }
 
@@ -246,7 +253,7 @@ fn main() -> ! {
         let mut timer = parts.timer;
         let mut subtimer = parts.subtimer2;
 
-        set_time(&mut timer, &mut subtimer, 12500);
+        set_time(&mut timer, &mut subtimer, 35000);
 
         let mybool = Mbool::new(false);
         with(|cs| {
@@ -328,6 +335,7 @@ fn main() -> ! {
         let mut nextradiost = RadioState::RadioRx;
         let mut rpktcnt = 0u16;
         let mut npktcnt = 0u16;
+        let mut tocnt = 0u16;
         let mut on = false;
         Text::with_baseline(
             "We have nrf start loop",
@@ -349,6 +357,27 @@ fn main() -> ! {
                         match subtimer.wait() {
                             Ok(_) => {
                                 // timeout
+                                let mut bytes = [0u8; 5];
+                                for (place,data) in bytes[1..=4].iter_mut().zip(myprint_u16_as_hex(tocnt).iter()) {
+                                    *place = *data;
+                                }
+                                tocnt = tocnt + 1;
+                                Rectangle::new(
+                                    Point::new(0, 34),
+                                    Size {
+                                        width: 30,
+                                        height: 12,
+                                    },
+                                )
+                                .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+                                .draw(&mut display)
+                                .unwrap();
+                                bytes[0] = 'T' as u8;
+
+                                let output = core::str::from_utf8(&bytes).unwrap();
+                                Text::with_baseline(&output, Point::new(0, 34), text_style, Baseline::Top)
+                                .draw(&mut display.color_converted())
+                                .unwrap();
                             },
                             Err(_) =>
                                 if let Ok(Some(pipe)) = nrf24rx.can_read() {
@@ -366,7 +395,7 @@ fn main() -> ! {
                                                 on = false;
                                             }
                                             nextradiost = RadioState::RadioTx;
-                                            set_time(&mut timer, &mut subtimer, 12500);
+                                            // set_time(&mut timer, &mut subtimer, 12500);
                                             break;
                                         }
                                     }
@@ -376,17 +405,25 @@ fn main() -> ! {
                     nrf24 = nrf24rx.standby();
                 }
                 RadioState::RadioTx => {
-                    let bytes = myprint_u16_as_hex(rpktcnt);
+                    let mut bytes = [0u8; 5];
+                    for (place,data) in bytes[1..=4].iter_mut().zip(myprint_u16_as_hex(rpktcnt).iter()) {
+                        *place = *data;
+                    }
                     Rectangle::new(
                         Point::new(0, 34),
                         Size {
-                            width: 17,
+                            width: 30,
                             height: 12,
                         },
                     )
                     .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
                     .draw(&mut display)
                     .unwrap();
+                    if on {
+                        bytes[0] = 'A' as u8;
+                    } else {
+                        bytes[0] = 'a' as u8;
+                    }
 
                     let output = core::str::from_utf8(&bytes).unwrap();
                     Text::with_baseline(&output, Point::new(0, 34), text_style, Baseline::Top)

@@ -153,7 +153,11 @@ fn set_time<T: TimerPeriph + CapCmp<C>, C>(
     subtimer: &mut SubTimer<T, C>,
     delay: u16,
 ) {
-    timer.start(delay + delay);
+    if delay < 32768u16 {
+        timer.start(delay + delay);
+    } else {
+        timer.start(65535u16);
+    }
     subtimer.set_count(delay);
 }
 
@@ -243,7 +247,7 @@ fn main() -> ! {
         let mut regctl = timer.readctl_reg().unwrap();
         print_u16(&mut tx, regctl);
 
-        set_time(&mut timer, &mut subtimer, 500);
+        set_time(&mut timer, &mut subtimer, 1500);
         let mut regctl = timer.readctl_reg().unwrap();
         print_u16(&mut tx, regctl);
 

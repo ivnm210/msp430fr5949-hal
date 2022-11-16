@@ -1,7 +1,6 @@
 # `msp430fr5949-hal`
 
-> HAL for microcontrollers MSP430FR5949
-> derived from msp430fr2x5x-hal - 
+> HAL for microcontrollers MSP430FR5949 derived from msp430fr2x5x-hal - 
 > work in progress
 
 # License
@@ -21,7 +20,12 @@ at your option.
 - gpio, spi, timers, capture, compare, pwm, rtc and uart work fine
 - nrfrx - is a NRF24 radio server
 - nrftx - is a NRF24 client
-- display - is a ST7735 LCD display test on SPI 
+- display - is a ST7735 LCD display test on SPI, alloc test 
+
+## Build example:
+cargo build -Z build-std=core --release --example name
+or
+cargo build -Z build-std=core,alloc --release --example name
 
 ## Contribution
 

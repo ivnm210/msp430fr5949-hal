@@ -177,7 +177,11 @@ fn set_time<T: TimerPeriph + CapCmp<C>, C>(
     subtimer: &mut SubTimer<T, C>,
     delay: u16,
 ) {
-    timer.start(delay + delay);
+    if delay < 32768u16 {
+        timer.start(delay + delay);
+    } else {
+        timer.start(65535u16);
+    }
     subtimer.set_count(delay);
 }
 
@@ -488,3 +492,6 @@ fn panic(info: &PanicInfo) -> ! {
 extern "C" fn abort() -> ! {
     panic!();
 }
+
+// TX ______T_XXXXXXRR......T_XXXXXXRR........
+// RX ___...........T_XXXXXXRR......T_XXXXXX.....

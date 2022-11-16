@@ -103,26 +103,21 @@ static P1IV: Mutex<UnsafeCell<Option<PxIV<P1>>>> = Mutex::new(UnsafeCell::new(No
 static B: &[u8; 16] = b"0123456789abcdef";
 
 fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
-    let b0 = B[(val / 16) as usize];
-    let b1 = B[(val % 16) as usize];
-    [b0, b1]
+    let mut b = [0u8; 2];
+    for i in 0..=1 {
+        b[i] = B[((val >> ((1 - i)*4)) & 0xF) as usize];
+    }
+    b
 }
-fn myprint_u16_as_hex(val: u8) -> [u8; 4] {
-    let b0 = B[((val / 32) / 16) as usize];
-    let b1 = B[((val / 32) % 16) as usize];
-    let b2 = B[((val / 16) % 16) as usize];
-    let b3 = B[(val % 16) as usize];
-    [b0, b1, b2, b3]
+fn myprint_u16_as_hex(val: u16) -> [u8; 4] {
+    let mut b = [0u8; 4];
+    for i in 0..=3 {
+        b[i] = B[((val >> ((3 - i)*4)) & 0xF) as usize];
+    }
+    b
 }
-// fn myprint_u8_as_hex(val: u8) -> [u8; 2] {
-//     const B: &[u8; 16] = b"0123456789abcdef";
-//     let b0 = B[(val / 16) as usize];
-//     let b1 = B[(val % 16) as usize];
-//     [b0, b1]
-// }
 
 fn myprint_u8_as_dec(val: u8) -> [u8; 3] {
-    const B: &[u8; 10] = b"0123456789";
     let b0 = B[(val / 100) as usize];
     let b1 = B[((val / 10) % 10) as usize];
     let b2 = B[(val % 10) as usize];
